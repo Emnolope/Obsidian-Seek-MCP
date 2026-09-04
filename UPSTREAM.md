@@ -19,3 +19,17 @@ first, then update the rows above and the corresponding compatibility modules.
 The compatibility modules are not byte-for-byte copies: imports and filesystem
 adapters necessarily differ. The protocol-critical algorithms and names are
 kept close so upstream diffs remain localized and reviewable.
+
+## Current integration status
+
+The pinned compatibility source remains Seek commit
+`1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`. The modified Seek plugin was built
+and released as `1.1.3-mcp-export-v2`, installed through BRAT, and used to
+produce the real MCP export. No upstream compatibility update is pending for
+the immediate handoff.
+
+The next agent should validate the existing implementation against that real
+export before changing compatibility code. Confirm the 384 dimension, format 3
+record layout, model revision, document-to-locator joins, and CRC checks. The
+revoked setup PAT is unrelated to upstream compatibility and must not be added
+to this document.

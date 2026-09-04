@@ -10,11 +10,11 @@ Priority tags:
 
 ## Immediate: establish a working end-to-end path
 
-- [ ] `[critical]` Generate a complete export from the modified Seek plugin using **Seek: Export complete MCP index**.
-- [ ] `[critical]` Confirm the export layout contains Seek's native `meta.*.json`, `index.*.jsonl`, and `embeddings.*.bin` files plus `MCP Export/export.meta.json` and `MCP Export/documents.jsonl`.
+- [x] `[critical]` Generate a complete export from the modified Seek plugin using **Seek: Export complete MCP index**.
+- [x] `[critical]` Confirm the export layout contains Seek's native `meta.*.json`, `index.*.jsonl`, and `embeddings.*.bin` files plus `MCP Export/export.meta.json` and `MCP Export/documents.jsonl`.
 - [ ] `[critical]` Run the MCP loader against the real export and verify that every vector ID resolves to a document, note path, title, and chunk body.
 - [ ] `[critical]` Validate all real sidecar records: dimensions, offsets, shard paths, binary lengths, and CRC32 checks.
-- [ ] `[critical]` Verify the two-vault Git workflow: human vault exports, Git synchronizes, agent vault pulls, and the MCP server remains read-only.
+- [x] `[critical]` Verify the two-vault Git workflow: human vault exports, Git synchronizes, agent vault pulls, and the MCP server remains read-only.
 - [ ] `[critical]` Add a local query-embedding adapter that uses the exact Seek model, revision, tokenizer, preprocessing, pooling, normalization, and 384-dimensional output.
 - [ ] `[critical]` Add natural-language query support to `semantic_search` while retaining precomputed-vector input for diagnostics and tests.
 - [ ] `[critical]` Verify that PicoClaw can launch the MCP process over stdio and successfully call `initialize`, `tools/list`, and `semantic_search`.
@@ -71,6 +71,43 @@ Priority tags:
 - [ ] `[optional]` Automate an upstream diff report that highlights changes in the compatibility files and produces a porting checklist.
 
 ## Safe takeover commands
+
+Current handoff: plugin deployment, export generation, and vault synchronization
+are complete. Begin with the real-export smoke check in section 7. The setup PAT
+is no longer valid; do not rely on it or reproduce it.
+
+Before starting:
+
+- The documentation changes in `CONTEXT.md`, `MCP_BLUEPRINT.md`,
+  `TODO.md`, `INVESTIGATION.md`, and `UPSTREAM.md` are part of the current
+  handoff commit; verify the working tree before making further edits.
+- Keep the repositories distinct: this MCP repository is
+  `/workspaces/Obsidian-Seek-MCP`; the plugin checkout is
+  `/workspaces/Obsidian-Seek`; the real synchronized data is in the separate
+  `system-vault` checkout.
+- Locate the agent-side `Seek Index` before setting `SEEK_EXPORT_DIR`. It must
+  contain both the native sidecars and `MCP Export/`; do not point at
+  `MCP Export/` alone and do not test against the human source vault.
+- The real export is not duplicated in this MCP repository. It remains in the
+  separate synchronized `system-vault` checkout and must be available locally
+  before the real-data smoke test can run.
+
+Validation order:
+
+1. Run the build and existing tests.
+2. Start the server against the real export and call `index_status` first.
+3. Verify the real model ID, revision, format `3`, dimension `384`, and the
+  expected count of `6736` chunks.
+4. Verify that every exported document ID joins to a native locator and that
+  all binary records pass dimension, offset, length, and CRC checks.
+5. Exercise `fetch_chunk`, `fetch_note`, and `semantic_search` with a valid
+  precomputed 384-value query vector.
+6. Only after that consider implementation changes or new features.
+
+The current server does not embed text queries. It accepts precomputed query
+vectors only. Remaining known gaps include generation coupling, tombstones,
+note-level deduplication, response bounds, protocol edge-case handling, and
+automatic reload.
 
 Run these from the MCP repository unless a command explicitly changes directory.
 They inspect, install, build, test, and compare; they do not write to the vault,

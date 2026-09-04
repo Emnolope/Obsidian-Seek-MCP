@@ -69,3 +69,23 @@ traversal, and generation/count inconsistencies.
 - Full scan for correctness; candidate generation can use Seek's sign-bit tier later.
 - Explicit export after a successful full reindex; no export on every edit.
 - Query-vector input first; a matching local embedding adapter follows separately.
+
+## Real-data validation handoff
+
+The export pipeline has now run successfully on the phone and the resulting
+`Seek Index` data is available in the agent-side vault copy. The next step is
+validation of this blueprint against real data, not further export design.
+
+Start the server with `SEEK_EXPORT_DIR` set to the parent `Seek Index` directory.
+Call `index_status` first and verify:
+
+- dimension `384`
+- sidecar format `3`
+- model ID `tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX`
+- revision `54db88c5667bd79b4aea24ea6027a7ef45a7bbb5`
+- expected real chunk count, currently known to be `6736`
+
+Then test `fetch_chunk` and `fetch_note`, followed by `semantic_search` using a
+real 384-value query vector. Record whether all exported document IDs resolve to
+native locators and whether CRC validation succeeds across the real shard.
+Do not infer success from the existing synthetic unit tests alone.

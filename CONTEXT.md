@@ -148,6 +148,37 @@ The overall direction is clear:
 - expose retrieval via a local MCP server
 - let PicoClaw consume those results as context rather than trying to bootstrap a separate embedding system
 
+## Current handoff: real export is ready
+
+The modified Seek plugin has been built, published, installed through BRAT, and
+used to run the explicit export command on the phone. The GitHub release is
+`1.1.3-mcp-export-v2` and contains `main.js`, `manifest.json`, and `styles.css`.
+
+The exported data has been synchronized into the agent-side `system-vault`
+copy. The next agent should test the MCP server against this real export rather
+than restart plugin deployment or regenerate the export without evidence that
+the files are incomplete.
+
+The expected input root is the parent `Seek Index` directory containing:
+
+```text
+meta.<device>.json
+index.<device>.jsonl
+embeddings.<device>.<seq>.bin
+MCP Export/export.meta.json
+MCP Export/documents.jsonl
+```
+
+The immediate validation target is end to end: load `index_status`, verify the
+real model, revision, dimension, and count, then exercise `fetch_chunk`,
+`fetch_note`, and `semantic_search` with a valid 384-value query vector. The
+existing unit tests use synthetic data and do not replace this real-export
+smoke test.
+
+The setup PAT was revoked/burned and must not be expected to work. Use existing
+Git authentication or a newly supplied local credential if a future sync needs
+one. Never place a real token in documentation or a command copied into chat.
+
 ## Conversation handoff: clarified architecture and implementation direction
 
 ### Why this repository exists

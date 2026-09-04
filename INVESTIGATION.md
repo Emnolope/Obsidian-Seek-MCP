@@ -18,7 +18,8 @@ The working Seek checkout used for compatibility work is
 
 The two repositories are separate. The MCP repository was pushed to GitHub in
 commit `cbd7d77` (`Add Seek-compatible MCP server`). The modified Seek checkout
-was intentionally not pushed.
+was built and published as release `1.1.3-mcp-export-v2`; BRAT installation and
+the explicit export command both completed successfully.
 
 ## Current data flow
 
