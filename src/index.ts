@@ -1,0 +1,123 @@
+import { readdir, readFile } from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
+import { dequantizeInt8 } from './quant.ts';
+import { readRecordAt, scanJsonl, SIDECAR_FORMAT } from './sidecar.ts';
+
+export interface ExportMeta {
+  schemaVersion: number;
+  generation: string;
+  modelId: string;
+  revision: string;
+  chunkerVersion: number;
+  dimension: number;
+  chunkCount: number;
+}
+
+export interface DocumentRecord {
+  chunkId: string;
+  notePath: string;
+  title: string;
+  content: string;
+  chunkIndex: number;
+  mtime: number;
+  q: number[];
+  s: number;
+  vector: number[];
+}
+
+export interface SearchHit extends DocumentRecord { score: number }
+
+function confined(root: string, notePath: string): string {
+  const path = resolve(root, notePath);
+  const rel = relative(resolve(root), path);
+  if (!rel || rel.startsWith('..') || rel.includes(`..${'/'}`) || resolve(root, rel) !== path) {
+    throw new Error(`path escapes vault root: ${notePath}`);
+  }
+  return path;
+}
+
+function cosine(a: number[], b: number[]): number {
+  let dot = 0;
+  let aa = 0;
+  let bb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    aa += a[i] * a[i];
+    bb += b[i] * b[i];
+  }
+  return aa && bb ? dot / Math.sqrt(aa * bb) : 0;
+}
+
+export class SeekIndex {
+  readonly root: string;
+  readonly meta: ExportMeta;
+  readonly documents: DocumentRecord[];
+
+  private constructor(
+    root: string,
+    meta: ExportMeta,
+    documents: DocumentRecord[],
+  ) {
+    this.root = root;
+    this.meta = meta;
+    this.documents = documents;
+  }
+
+  static async load(root: string): Promise<SeekIndex> {
+    const exportRoot = resolve(root);
+    const documentRoot = join(exportRoot, 'MCP Export');
+    const meta = JSON.parse(await readFile(join(documentRoot, 'export.meta.json'), 'utf8')) as ExportMeta;
+    const metaName = (await readdir(exportRoot)).find(name => /^meta\.[A-Za-z0-9-]+\.json$/.test(name));
+    if (!metaName) throw new Error('Seek sidecar metadata not found');
+    const sidecarMeta = JSON.parse(await readFile(join(exportRoot, metaName), 'utf8')) as { dim: number; format: number };
+    if (meta.schemaVersion !== 1 || sidecarMeta.format !== SIDECAR_FORMAT || sidecarMeta.dim !== meta.dimension) {
+      throw new Error('unsupported or invalid Seek export metadata');
+    }
+    const entries = await scanJsonl(exportRoot);
+    const lines = (await readFile(join(documentRoot, 'documents.jsonl'), 'utf8')).split('\n').filter(Boolean);
+    const documents: DocumentRecord[] = [];
+    const ids = new Set<string>();
+    for (const line of lines) {
+      const document = JSON.parse(line) as DocumentRecord;
+      if (!document.chunkId || ids.has(document.chunkId)) throw new Error(`duplicate chunk id: ${document.chunkId}`);
+      if (!document.notePath || document.notePath.startsWith('/') || document.notePath.split('/').includes('..')) {
+        throw new Error(`invalid note path: ${document.notePath}`);
+      }
+      const entry = entries.get(document.chunkId);
+      if (!entry) throw new Error(`missing sidecar vector: ${document.chunkId}`);
+      const tier = await readRecordAt(exportRoot, entry);
+      const vector = Array.from(dequantizeInt8(tier.q, tier.s));
+      if (vector.length !== meta.dimension) throw new Error(`dimension mismatch for chunk: ${document.chunkId}`);
+      document.vector = vector;
+      ids.add(document.chunkId);
+      documents.push(document);
+    }
+    if (documents.length !== meta.chunkCount) throw new Error(`chunk count mismatch: ${documents.length} != ${meta.chunkCount}`);
+    return new SeekIndex(exportRoot, meta, documents);
+  }
+
+  status() {
+    return { ...this.meta, loadedChunks: this.documents.length };
+  }
+
+  search(queryVector: number[], topK = 10, pathPrefix?: string): SearchHit[] {
+    if (queryVector.length !== this.meta.dimension) throw new Error(`query vector must have dimension ${this.meta.dimension}`);
+    if (!Number.isInteger(topK) || topK < 1 || topK > 100) throw new Error('topK must be between 1 and 100');
+    return this.documents
+      .filter(document => !pathPrefix || document.notePath.startsWith(pathPrefix))
+      .map(document => ({ ...document, score: cosine(queryVector, document.vector) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topK);
+  }
+
+  chunk(chunkId: string): DocumentRecord {
+    const document = this.documents.find(candidate => candidate.chunkId === chunkId);
+    if (!document) throw new Error(`chunk not found: ${chunkId}`);
+    return document;
+  }
+
+  note(notePath: string): DocumentRecord[] {
+    confined(this.root, notePath);
+    return this.documents.filter(document => document.notePath === notePath);
+  }
+}
