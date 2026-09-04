@@ -1,202 +1,398 @@
-# Seek Index Format Investigation
+# Seek/MCP Technical Investigation
 
-Investigation date: 2026-09-03
+Last verified: 2026-09-04
 
-Reference repositories were treated as read-only. Only this report was written in
-`Obsidian-Seek-MCP`.
+This file records what exists and how it works. The rationale belongs in
+`CONTEXT.md`; the ordered work list belongs in `todo.md`.
 
-## Executive Finding
+## Repository layout
 
-The full generated index is `/workspaces/system-vault/Seek Index/`, not the
-small index currently under
-`/workspaces/system-vault/.obsidian/plugins/seek/index/`.
+The MCP repository is `/workspaces/Obsidian-Seek-MCP`.
 
-`Seek Index/` contains 6,736 vector records. Its 2,990,784-byte binary shard is
-exactly `6,736 * 444`, so the shard is a concatenation of fixed 444-byte records,
-with no global header. The source defines each record as:
+The working Seek checkout used for compatibility work is
+`/workspaces/Obsidian-Seek`. Its current source commit is:
 
 ```text
-[q:384 signed-int8 bytes]
+1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd
+```
+
+The two repositories are separate. The MCP repository was pushed to GitHub in
+commit `cbd7d77` (`Add Seek-compatible MCP server`). The modified Seek checkout
+was intentionally not pushed.
+
+## Current data flow
+
+```text
+Seek IndexedDB
+  -> modified Seek exporter
+  -> Seek native sidecar files + MCP Export document mapping
+  -> Git sync to the agent vault copy
+  -> MCP server loads native sidecar records
+  -> MCP joins chunk IDs to document records
+  -> cosine ranking
+  -> MCP results to PicoClaw
+```
+
+The MCP server is read-only. It does not write notes, run Git, reindex Seek, or
+modify the source-of-truth vault.
+
+## Seek source changes
+
+The modified Seek checkout contains:
+
+- `src/mcp-export.ts`
+  - Reads `IndexStore.listAllMeta()`.
+  - Reads bodies with `IndexStore.getBodiesMap()`.
+  - Reads file mappings with `IndexStore.listFileRecords()`.
+  - Reads quantized vectors with `IndexStore.listAllEmbeddings()`.
+  - Joins all four sources by `chunk_id`.
+  - Rejects any chunk missing metadata, body, vector, or note mapping.
+  - Writes only the document mapping, not a second vector format.
+- `src/main.ts`
+  - Registers **Seek: Export complete MCP index**.
+  - Reports success or failure with an Obsidian notice.
+
+The exporter writes this structure below the vault root:
+
+```text
+Seek Index/
+  meta.<deviceId>.json
+  index.<deviceId>.jsonl
+  embeddings.<deviceId>.<seq>.bin
+  MCP Export/
+    export.meta.json
+    documents.jsonl
+```
+
+The exporter currently writes a temporary directory named like
+`MCP Export.tmp-<generation>`, writes `documents.jsonl` and then
+`export.meta.json`, removes the previous `MCP Export` directory, and renames the
+temporary directory into place. The generation marker is in the MCP metadata,
+but it is not currently written into Seek's native sidecar metadata, so exact
+cross-file generation coupling remains unfinished.
+
+## MCP document export contract
+
+`MCP Export/export.meta.json` has this shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "generation": "<timestamp>-<chunk-count>",
+  "modelId": "tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX",
+  "revision": "54db88c5667bd79b4aea24ea6027a7ef45a7bbb5",
+  "chunkerVersion": 10,
+  "dimension": 384,
+  "chunkCount": 6736
+}
+```
+
+Each `MCP Export/documents.jsonl` line contains:
+
+```json
+{
+  "chunkId": "0190363da319fc",
+  "notePath": "Projects/example.md",
+  "title": "Example",
+  "content": "The chunk text",
+  "chunkIndex": 0,
+  "mtime": 1788404404143
+}
+```
+
+The document manifest intentionally does not contain `q`, `s`, or a float
+vector. The vector is read from Seek's native binary shard using the `chunkId`
+locator in the native JSONL sidecar.
+
+## Native Seek sidecar format
+
+The real sample was inspected under:
+
+```text
+/workspaces/system-vault/Seek Index/
+```
+
+Observed files and sizes:
+
+| File | Size |
+| --- | ---: |
+| `meta.mobile-a72520e0.json` | 330 bytes |
+| `index.mobile-a72520e0.jsonl` | 698,037 bytes |
+| `embeddings.mobile-a72520e0.0.bin` | 2,990,784 bytes |
+
+The sample has 6,736 JSONL records and 6,736 unique IDs. The binary shard size
+is exactly `6,736 * 444 = 2,990,784` bytes.
+
+### Sidecar metadata
+
+The real metadata identifies:
+
+```text
+modelId: tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX
+revision: 54db88c5667bd79b4aea24ea6027a7ef45a7bbb5
+chunkerVersion: 10
+dim: 384
+format: 3
+deviceId: mobile-a72520e0
+```
+
+The MCP loader accepts format `3` and requires the sidecar dimension to match
+the MCP export dimension.
+
+### JSONL locator
+
+Each native locator line has this shape:
+
+```json
+{
+  "id": "0190363da319fc",
+  "dim": 384,
+  "shard": "mobile-a72520e0",
+  "seq": 0,
+  "off": 0,
+  "mtime": 1788404404143
+}
+```
+
+Meaning:
+
+- `id`: Seek `chunk_id`; it is not a reversible note path.
+- `dim`: stored vector dimension.
+- `shard`: device ID used in the binary filename.
+- `seq`: shard sequence number.
+- `off`: byte offset of the fixed-size record in that shard.
+- `mtime`: record freshness used by winner resolution.
+
+The MCP implementation scans files matching `index.<deviceId>.jsonl`, resolves
+the newest record per device, then resolves the cross-device winner by mtime,
+device ID, sequence, and offset. The current MCP reader does not yet support
+tombstone records; it is intended for the live exported vector set.
+
+### Binary record layout
+
+The native record is exactly 444 bytes:
+
+```text
+[q:384 signed int8 bytes]
 [s:8-byte little-endian float64]
 [sign:48 packed sign-bit bytes]
 [crc:4-byte little-endian CRC-32]
 ```
 
-This is a custom binary sidecar format, not JSON, SQLite, or a general-purpose
-vector-database file. JSON and JSONL sidecars provide metadata and record
-locations.
-
-## Files And Sizes
-
-### Full generated index: `system-vault/Seek Index/`
-
-| File | `file` result | Size |
-|---|---|---:|
-| `meta.mobile-a72520e0.json` | JSON text data | 330 bytes |
-| `index.mobile-a72520e0.jsonl` | New Line Delimited JSON text data | 698,037 bytes |
-| `embeddings.mobile-a72520e0.0.bin` | data | 2,990,784 bytes |
-| Directory total | | 3.6 MB |
-
-The JSONL file has 6,736 lines. The first records are JSON objects such as:
-
-```json
-{"id":"0190363da319fc","dim":384,"shard":"mobile-a72520e0","seq":0,"off":0,"mtime":1788404404143}
-{"id":"075814f6034206","dim":384,"shard":"mobile-a72520e0","seq":0,"off":444,"mtime":1788404404143}
-```
-
-The metadata identifies model, revision, `chunkerVersion: 10`, `dim: 384`,
-`format: 3`, and device `mobile-a72520e0`.
-
-### Plugin-local copy: `system-vault/.obsidian/plugins/seek/index/`
-
-| File | `file` result | Size |
-|---|---|---:|
-| `meta.mobile-a72520e0.json` | JSON text data | 308 bytes |
-| `index.mobile-a72520e0.jsonl` | JSON text data | 98 bytes |
-| `embeddings.mobile-a72520e0.0.bin` | data (the `file` utility reports a QDOS signature for this short binary) | 444 bytes |
-| Directory total | | 868 KB for the whole plugin directory, including `main.js`, CSS, and logs |
-
-The plugin-local JSONL has one record and the binary has one 444-byte record.
-Its metadata has the same model, revision, dimension, and format, but
-`lastFullReindex` is `null`. The two copies have different SHA-256 hashes.
-The full `Seek Index/` copy is therefore the relevant generated dataset; the
-plugin-local copy is a separate one-record artifact or initialization state.
-
-## Raw Byte Inspection
-
-The first 200 bytes were inspected with both `file` and `od`/escaped text output.
-The important observations are:
-
-| File class | First bytes as hex | Text interpretation |
-|---|---|---|
-| Full binary shard | `fa 01 05 01 0d fd 02 fa 0c 07 08 ff 04 06 00 01 ...` | Non-printable signed-byte data, not text |
-| Plugin binary shard | `fb 01 06 01 04 06 01 fc fe fd 04 fa 00 0f 0d ...` | Non-printable signed-byte data, not text |
-| Full JSONL | `7b 22 69 64 22 3a 22 30 31 39 30 ...` | Starts with `{"id":"019...` |
-| Plugin JSONL | `7b 22 69 64 22 3a 22 31 37 35 31 ...` | Starts with `{"id":"175...` |
-| Both metadata files | `7b 0a 20 20 22 6d 6f 64 65 6c 49 64 ...` | Starts with formatted JSON: `{` then newline and `"modelId"` |
-
-The binary begins immediately with vector-like int8 values. There is no magic
-number, version header, dimension field, or record count in the shard itself.
-The dimension and format version are in the metadata/JSONL sidecars.
-
-## Confirmed From Source
-
-### Record layout
-
-`/workspaces/Obsidian-Seek/src/sidecar.ts:35-49` describes the sidecar as the
-persisted DB v6 tiers and defines the sizes:
-
-- `Q_BYTES = ACTIVE_MODEL_SPEC.dim`, which is 384 for this index.
-- `S_BYTES = 8` for the dequantization scale.
-- `SIGN_BYTES = ceil(384 / 8) = 48`.
-- `RECORD_PAYLOAD_BYTES = 384 + 8 + 48 = 440`.
-- `VEC_BYTES = 440 + 4 = 444`.
-- `CRC_BYTES = 4`, for CRC-32 over the first 440 bytes.
-
-`/workspaces/Obsidian-Seek/src/sidecar.ts:152-174` implements the codec. It
-writes the quantized vector bytes first, calls
-`DataView.setFloat64(Q_BYTES, t.s, true)` for a little-endian float64 scale,
-copies packed sign bits, and writes a little-endian CRC-32 with
-`setUint32(RECORD_PAYLOAD_BYTES, ..., true)`.
-
-The same source describes the packed layout explicitly as:
+Constants in the compatibility module `src/sidecar.ts` are:
 
 ```text
-[q:384 | s:f64LE:8 | sign:48 | crc:u32LE:4]
+Q_BYTES = 384
+S_BYTES = 8
+SIGN_BYTES = 48
+RECORD_PAYLOAD_BYTES = 440
+VEC_BYTES = 444
+DIM = 384
+SIDECAR_FORMAT = 3
 ```
 
-### Quantization
-
-`/workspaces/Obsidian-Seek/src/quant.ts:1-37` identifies this as int8 scalar
-quantization, or SQ8. `quantizeInt8` receives a `Float32Array`, computes a
-per-vector scale `s = max(abs(v)) / 127`, and stores each component as
-`Math.round(v / s)` in an `Int8Array`.
-
-`/workspaces/Obsidian-Seek/src/quant.ts:44-68` confirms that the stored `q` is
-384 signed int8 components and that dequantization returns `q[i] * s` as
-`Float32Array` values. The query remains float32; stored vectors are
-dequantized for the cosine rerank. There is no product quantization, binary-only
-vector representation, or global scale. The sign-bit tier is an additional
-candidate-generation representation.
-
-### How files are written
-
-`/workspaces/Obsidian-Seek/src/sidecar.ts:521-559` writes binary artifacts with
-`adapter.writeBinary` to a temporary file followed by rename. Text artifacts use
-the same temporary-file and atomic-rename pattern through `adapter.write`.
-
-`/workspaces/Obsidian-Seek/src/sidecar.ts:639-662` appends JSONL records with
-`adapter.append`, falling back to read-plus-atomic-rewrite when append fails.
-
-`/workspaces/Obsidian-Seek/src/sidecar.ts:707-757` shows the append protocol:
-each flush creates fresh shard files, places records consecutively at offsets
-`0`, `444`, `888`, and so on, writes the binary shard first, then appends JSONL
-locator lines referring to it. Large batches split at the 4 MiB shard cap.
-
-### Mapping from vector to chunk and note
-
-`/workspaces/Obsidian-Seek/src/sidecar.ts:75-93` defines each JSONL vector
-record with `id`, `dim`, `shard`, `seq`, `off`, and `mtime`. The `id` is a
-`chunk_id`; `seq` selects the shard and `off` selects the 444-byte record within
-that shard. The binary record itself contains no chunk ID or note path.
-
-`/workspaces/Obsidian-Seek/src/index-store.ts:1-17` documents the normal local
-IndexedDB schema: chunk metadata, chunk bodies, quantized embeddings, packed
-binary vectors, file records, and configuration are separate object stores.
-
-`/workspaces/Obsidian-Seek/src/index-store.ts:668-713` confirms that a normal
-batch writes `chunk_meta`, `chunk_body`, `embeddings`, and `binary` using the
-same `chunk_id` key, and that a file record maps `note_path` to `chunk_ids`.
-The source therefore establishes this mapping chain:
+CRC32 is IEEE CRC-32 over the first 440 bytes. `decodeRecord()` checks the CRC,
+checks the expected dimension, validates the offset, and returns `TierBytes`:
 
 ```text
-JSONL id -> chunk_id
-chunk_id -> chunk metadata/body in IndexedDB
-note_path -> chunk_ids in the IndexedDB files store
+{ q: Int8Array(384), s: number, sign: Uint8Array(48) }
 ```
 
-The sidecar JSONL is a locator, not a self-contained note/chunk database. The
-full generated `Seek Index/` folder contains no visible note-path or chunk-body
-store alongside its three files.
+The usable stored vector is reconstructed as:
 
-`/workspaces/Obsidian-Seek/src/chunker.ts:42-76` confirms that `chunk_id` is a
-path-salted cyrb53 hash of note path, title, content, and (when present) the
-dense frontmatter suffix. This makes the ID reproducible only when the original
-note path/content/chunking logic is available; it is not a reversible encoding
-of the path.
+```text
+vector[i] = q[i] * s
+```
 
-## Still Unclear
+### Shards
 
-- The three exported files do not contain the IndexedDB `chunk_meta`,
-  `chunk_body`, or `files` stores, so the real note-path-to-chunk mapping cannot
-  be recovered from `Seek Index/` alone.
-- The current sample has one shard, so multi-shard behavior is source-confirmed
-  but not observed in this vault directory. The source says shard sequence is
-  selected by JSONL `seq` and capped at 4 MiB.
-- The CRC bytes were not independently decoded and checked against every
-  record. The source defines CRC-32 IEEE behavior, but an implementation should
-  still validate this against sample records before trusting arbitrary files.
-- The exact relationship between the committed `Seek Index/` export and the
-  current IndexedDB instance is not directly observable from these files. The
-  metadata and record format show compatibility, but the sidecar does not prove
-  that every record still has a corresponding live note.
-- The source comments describe the binary sign-bit tier as derived from the
-  true fp32 vector, but the sidecar only stores its packed bytes; reconstructing
-  the original fp32 vector is not possible from int8 plus scale alone.
+Seek uses a 4 MiB shard cap. Records are written consecutively at offsets
+`0`, `444`, `888`, and so on. The binary file has no global header, dimension,
+record count, or magic number; those values come from metadata and locators.
 
-## Next Checks Before Building The MCP Server
+## IndexedDB source schema
 
-1. Parse every JSONL line and verify that IDs are unique, `dim` is 384, offsets
-   are non-negative multiples of 444, and every `seq/off` points inside an
-   existing shard.
-2. Decode every 444-byte record using the source layout and verify every CRC-32.
-3. Decode the float64 scale and int8 values, then compare a few reconstructed
-   vectors against Seek's scoring implementation or a known query result.
-4. Determine where the corresponding IndexedDB data is available. In
-   particular, export or inspect the `chunk_meta`, `chunk_body`, and `files`
-   stores if note paths and text retrieval are required by the MCP server.
-5. Reproduce Seek's embedding model, preprocessing, normalization, candidate
-   sign-bit scoring, and int8 cosine reranking before implementing query-time
-   RAG. The stored index alone cannot generate a new query vector.
+Seek's normal IndexedDB stores are documented in
+`/workspaces/Obsidian-Seek/src/index-store.ts`:
 
-No parser or MCP server was implemented in this investigation.
+```text
+chunk_meta   chunk_id -> chunk metadata, excluding body text
+chunk_body   chunk_id -> content string
+embeddings   chunk_id -> QuantVec { q: Int8Array, s: number }
+binary       chunk_id -> packed sign-bit Uint8Array
+files        note_path -> { mtimeMs, chunk_ids, ... }
+meta         singleton index configuration
+bm25         serialized lexical-search cache
+```
+
+The required join inside Seek is:
+
+```text
+files.note_path
+  -> files.chunk_ids
+  -> chunk_meta + chunk_body
+  -> embeddings / binary
+```
+
+`chunk_id` is a content/path-salted cyrb53 hash produced by the chunker. It
+cannot be decoded into a note path. That is why the exporter must include the
+document mapping.
+
+Useful existing `IndexStore` methods are:
+
+```text
+getMeta()
+listAllMeta()
+getBodiesMap(ids)
+listFileRecords()
+listAllEmbeddings()
+listAllBinary()
+```
+
+The exporter currently uses the first five relevant reads and does not need to
+duplicate IndexedDB transaction code.
+
+## MCP implementation
+
+### Compatibility modules
+
+- `src/quant.ts`: Seek-shaped `QuantVec`, quantization, and dequantization.
+- `src/sidecar.ts`: Seek-shaped constants, CRC32, record codec, locator
+  scanning, winner resolution, and shard reads.
+- `UPSTREAM.md`: source-to-counterpart map and adaptation notes.
+- `NOTICE.md`: upstream attribution and MIT licensing information.
+
+These modules are not byte-for-byte copies. The codec and data rules are kept
+aligned with Seek, while Node filesystem imports and adapters are necessarily
+different. The MCP transport and tool logic are new.
+
+### Loader behavior
+
+`src/index.ts`:
+
+1. Resolves the configured parent `Seek Index` directory.
+2. Reads `MCP Export/export.meta.json`.
+3. Finds a valid `meta.<deviceId>.json` sidecar metadata file.
+4. Requires sidecar format `3` and matching dimension.
+5. Scans native `index.<deviceId>.jsonl` files.
+6. Resolves each document's `chunkId` to a native locator.
+7. Reads the matching `embeddings.<shard>.<seq>.bin` record.
+8. Validates offset, dimension, and CRC32.
+9. Dequantizes the native `q`/`s` record.
+10. Loads the document content and note mapping.
+
+The loader currently keeps all decoded documents/vectors in memory and performs
+a full linear scan for each semantic search.
+
+### MCP tools
+
+`src/server.ts` exposes these read-only tools over stdio:
+
+```text
+index_status
+semantic_search
+fetch_chunk
+fetch_note
+```
+
+`semantic_search` currently accepts:
+
+```text
+queryVector: number[]       required, exactly 384 values
+topK: integer                optional, 1..100, default 10
+pathPrefix: string           optional
+```
+
+It returns chunk-level records ranked by cosine similarity. It does not yet
+accept ordinary query text, group multiple chunks by note, or use the sign-bit
+candidate-generation stage.
+
+The server starts with:
+
+```sh
+npm ci
+SEEK_EXPORT_DIR="/path/to/Seek Index" npm start
+```
+
+`SEEK_EXPORT_DIR` must point to the parent directory containing both the native
+Seek sidecar files and `MCP Export/`, not to `MCP Export/` itself.
+
+## Current validation
+
+The MCP project has:
+
+```sh
+npm run build
+node --experimental-strip-types --test test/*.test.ts
+```
+
+The committed tests currently cover:
+
+- loading a CRC-protected native-style binary fixture
+- 384-dimensional cosine ranking
+- path traversal rejection for note fetches
+
+Most recent successful result:
+
+```text
+MCP build: passed
+MCP tests: 2 passed, 0 failed
+Seek typecheck: passed
+```
+
+The modified Seek repository's broader suite previously passed with:
+
+```text
+65 test files passed
+1167 tests passed
+1 skipped
+```
+
+The original real sidecar inspection independently reported:
+
+```text
+records: 6736
+uniqueIds: 6736
+invalidRecords: 0
+crcFailures: 0
+```
+
+Those real-sidecar checks predate the new MCP document export and do not prove
+that all 6,736 IDs resolve through the new `MCP Export/documents.jsonl` join.
+That complete real-export validation is still required.
+
+## Known technical gaps
+
+- No local query-text embedding adapter exists yet. A caller must provide a
+  matching 384-dimensional query vector.
+- The real 6,736-record export has not yet been loaded through the new MCP
+  loader and verified end to end.
+- The manifest generation ID is not coupled to native sidecar metadata.
+- Native tombstones are not currently handled by the MCP sidecar scanner.
+- The MCP server uses a minimal hand-written JSON-RPC stdio loop rather than a
+  full official SDK integration.
+- Tool argument validation and malformed JSON handling are minimal.
+- Results are chunk-level, not note-deduplicated.
+- Response-size limits, stale-file detection, and automatic index reload are
+  not implemented.
+- Multi-shard and multi-device behavior has source-aligned code but lacks broad
+  committed regression coverage.
+- The sign-bit candidate-generation path from Seek is not yet copied into the
+  live MCP search path.
+
+## Update procedure
+
+When Seek changes:
+
+1. Compare the pinned Seek commit with the new Seek commit.
+2. Diff `src/quant.ts`, `src/sidecar.ts`, `src/binary.ts`, model metadata,
+   relevant types, and IndexedDB read/schema code.
+3. Port matching format-sensitive blocks into the MCP compatibility modules,
+   retaining Seek names, constants, structure, comments, and harmless helpers
+   where practical.
+4. Keep Node filesystem and MCP-specific code clearly outside those blocks.
+5. Update `UPSTREAM.md`, `NOTICE.md`, fixtures, and format gates.
+6. Run MCP build/tests, Seek typecheck/tests, and real-export validation.
+
+Do not guess at an unknown sidecar format. Reject it, inspect the new Seek
+source, and update the compatibility layer deliberately.

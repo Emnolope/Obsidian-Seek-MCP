@@ -560,3 +560,44 @@ crcFailures: 0
 ```
 
 These checks validate the current sidecar files only. They do not prove that the sidecar has the corresponding live IndexedDB chunk/file records; that join is the purpose of the Seek exporter.
+
+## Next-session directive: compatibility-first maintenance
+
+The project is deliberately in a middle ground: the external MCP server must
+understand Seek's persisted data, but it must run outside Obsidian in Node and
+must expose MCP tools. The maintenance strategy is therefore compatibility
+first, not independent reimplementation.
+
+For every format-sensitive area, keep the MCP counterpart as close to Seek as
+practical. Preserve the upstream file names, module boundaries, type names,
+constants, variable names, function names, control flow, comments, and even
+harmless unused helper functions when doing so reduces future diffs. The goal
+is to make an upstream update a localized, mechanical comparison of matching
+files rather than a reconstruction of behavior from scratch.
+
+The code must still distinguish copied or closely adapted Seek blocks from new
+code. Node filesystem adapters, MCP transport, tool handlers, document
+manifests, and joins have no direct upstream equivalent and should remain at the
+boundary. Do not force Obsidian UI or IndexedDB lifecycle code into the MCP
+runtime merely to make the files look similar.
+
+Attribution is mandatory for every copied or substantially adapted block. Keep
+the upstream repository URL, exact source commit, original source path, and MIT
+license visible in the file or its companion notice. Maintain the source map in
+`UPSTREAM.md`. Do not describe an adapted block as byte-for-byte identical when
+imports, runtime APIs, or filesystem behavior differ.
+
+When Seek changes, use this update procedure:
+
+1. Compare the pinned Seek commit with the new Seek version.
+2. Inspect `quant.ts`, `sidecar.ts`, `binary.ts`, model metadata, relevant types,
+   and IndexedDB schema/read APIs.
+3. Port corresponding compatibility blocks while preserving upstream structure.
+4. Update the exporter only where the upstream schema or lifecycle requires it.
+5. Update `UPSTREAM.md`, attribution, fixtures, and format-version gates.
+6. Run MCP build/tests, Seek typecheck/tests, and a real-export validation.
+
+The ordered task list lives in `todo.md`. Its priority tags are `[critical]`,
+`[important]`, and `[optional]`; complete earlier critical work before later
+optimization work. The highest-value validation remains the complete join:
+every native Seek vector ID must resolve to a valid document and note path.
