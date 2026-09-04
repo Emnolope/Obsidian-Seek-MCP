@@ -18,10 +18,11 @@ SEEK_EXPORT_DIR="/path/to/Seek Index" npm start
 
 It exposes `index_status`, `semantic_search`, `fetch_chunk`, and `fetch_note`
 over MCP stdio. The directory must contain Seek's native sidecar files and its
-`MCP Export/` document mapping. `semantic_search` currently accepts a precomputed query vector;
-the embedding adapter must use the model and dimension recorded in
-`export.meta.json`. The document records retain Seek's quantized `q`/`s` tier;
-the server dequantizes it using the vendored Seek-compatible implementation.
+`MCP Export/` document mapping. `semantic_search` accepts either `queryText` or
+a precomputed `queryVector`; the local adapter uses Seek's model, revision,
+CLS pooling, normalization, and 384-dimensional output. The document records
+retain Seek's quantized `q`/`s` tier; the server dequantizes it using the
+vendored Seek-compatible implementation.
 
 The server is intentionally read-only. It does not edit notes, run Git, or
 modify Seek's index.

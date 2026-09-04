@@ -10,6 +10,10 @@ The compatibility layer follows Obsidian Seek commit
 | `src/sidecar.ts` `scanJsonl` | `src/sidecar.ts` | Same per-device and cross-device winner ordering, adapted from `DataAdapter` to Node filesystem reads. |
 | `src/sidecar.ts` `readRecordAt` | `src/sidecar.ts` | Same shard naming, range validation, and codec call, adapted to Node buffers. |
 | `src/index-store.ts` read methods | `Obsidian-Seek/src/mcp-export.ts` | New bridge code; joins Seek stores and exports the missing document mapping. |
+| `src/model-registry.ts` | `vendor/seek/src/model-registry.ts` | Wholesale vendored snapshot; byte-identical at the pinned commit. Defines the default model, revision, dimension, dtype, and registry helpers. |
+| `src/embedder.ts` | `vendor/seek/src/embedder.ts` | Wholesale vendored snapshot; byte-identical at the pinned commit. Defines the local embedder and query `embed(text)` entry point. |
+| `src/iframe-runner.ts` | `vendor/seek/src/iframe-runner.ts` | Wholesale vendored snapshot; byte-identical at the pinned commit. Contains the tokenizer, transformers.js, model loading, and iframe RPC implementation. |
+| `src/types.ts` | `vendor/seek/src/types.ts` | Wholesale vendored dependency snapshot for the embedding files; byte-identical at the pinned commit. |
 
 The MCP transport, tool handlers, and document manifest are intentionally new.
 They have no upstream equivalent and should not be mistaken for copied Seek
@@ -19,6 +23,19 @@ first, then update the rows above and the corresponding compatibility modules.
 The compatibility modules are not byte-for-byte copies: imports and filesystem
 adapters necessarily differ. The protocol-critical algorithms and names are
 kept close so upstream diffs remain localized and reviewable.
+
+The four files under `vendor/seek/src/` are intentionally different: they are
+wholesale snapshots of the corresponding Seek source files. They are retained
+outside the MCP runtime while the Node adapter is built, so a future upstream
+comparison can show additions and removals directly instead of comparing a
+refactored approximation.
+
+`src/query-embedder.ts` is new boundary code. It follows Seek's
+`iframe-runner.ts` query path and uses the same model registry values, while
+replacing the browser iframe with the Node Transformers.js runtime. Its
+`sliceAndRenormalize` helper is intentionally copied from Seek; the only
+intentional runtime difference is fixed `wasm` execution with the query path's
+128-token cap.
 
 ## Current integration status
 

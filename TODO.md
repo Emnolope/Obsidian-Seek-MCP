@@ -15,8 +15,8 @@ Priority tags:
 - [ ] `[critical]` Run the MCP loader against the real export and verify that every vector ID resolves to a document, note path, title, and chunk body.
 - [ ] `[critical]` Validate all real sidecar records: dimensions, offsets, shard paths, binary lengths, and CRC32 checks.
 - [x] `[critical]` Verify the two-vault Git workflow: human vault exports, Git synchronizes, agent vault pulls, and the MCP server remains read-only.
-- [ ] `[critical]` Add a local query-embedding adapter that uses the exact Seek model, revision, tokenizer, preprocessing, pooling, normalization, and 384-dimensional output.
-- [ ] `[critical]` Add natural-language query support to `semantic_search` while retaining precomputed-vector input for diagnostics and tests.
+- [x] `[critical]` Add a local query-embedding adapter that uses the exact Seek model, revision, tokenizer, preprocessing, pooling, normalization, and 384-dimensional output.
+- [x] `[critical]` Add natural-language query support to `semantic_search` while retaining precomputed-vector input for diagnostics and tests.
 - [ ] `[critical]` Verify that PicoClaw can launch the MCP process over stdio and successfully call `initialize`, `tools/list`, and `semantic_search`.
 
 ## Core correctness and consistency
