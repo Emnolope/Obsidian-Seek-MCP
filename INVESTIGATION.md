@@ -318,6 +318,40 @@ SEEK_EXPORT_DIR="/path/to/Seek Index" npm start
 `SEEK_EXPORT_DIR` must point to the parent directory containing both the native
 Seek sidecar files and `MCP Export/`, not to `MCP Export/` itself.
 
+## Query embedding and stale-export investigation
+
+The query path was added after tracing Seek's Granite model identifier and
+query-side preprocessing from the vendored source rather than relying on the
+minified plugin bundle. `src/query-embedder.ts` keeps the pinned model,
+revision, CLS pooling, normalization, 128-token limit, and 384-dimensional
+output. It replaces Seek's browser iframe/WASM execution with the Node CPU
+provider; this is a runtime adaptation, not a change to the embedding space.
+
+The MCP loader was then changed to tolerate a stale document mapping without a
+matching native locator. It keeps usable vector/document pairs, reports
+`exportedDocuments`, `loadedDocuments`, `skippedDocuments`, and
+`orphanVectors` through `index_status`, and continues to reject malformed
+records, invalid paths, dimension mismatches, and CRC failures. The plugin
+exporter remains responsible for producing a complete atomic export; this
+read-side tolerance is a recovery behavior, not proof that the export is
+consistent.
+
+The supplied `system-vault` confirms the case that motivated this policy:
+6,735 document records and 6,736 native locator records. Full binary and live
+query validation remain separate checks.
+
+## Immediate plugin work
+
+The next implementation task is in `/workspaces/Obsidian-Seek`: connect the
+export command to the successful indexing lifecycle so MCP document mappings,
+native locators, and vectors are published as one generation. The integration
+must be intentionally diff-friendly. Add a clearly named export helper, mark
+the indexing call site with an explicit MCP/export boundary, and leave concise
+rationale comments around the atomic commit marker. Preserve Seek's existing
+embedding and quantization functions instead of folding MCP behavior into
+generic vector calculations. A reviewer should be able to identify every
+plugin-side addition or modification from a normal source diff.
+
 ## Current validation
 
 The MCP project has:

@@ -148,6 +148,37 @@ The overall direction is clear:
 - expose retrieval via a local MCP server
 - let PicoClaw consume those results as context rather than trying to bootstrap a separate embedding system
 
+## Current implementation status
+
+The MCP server now accepts either natural-language `queryText` or a
+precomputed `queryVector`. The text path uses the pinned Seek model and
+revision, CLS pooling, normalization, a 128-token cap, and 384-dimensional
+output. Seek runs its embedder in a browser WASM runtime; the Node adapter uses
+the CPU execution provider while keeping the model and postprocessing aligned.
+
+The Node loader has a deliberate tolerance policy for stale exports. A
+document mapping without a matching native locator is skipped and counted in
+`index_status`, while malformed records, invalid paths, dimension mismatches,
+and CRC failures remain errors. This is an MCP read-side availability policy,
+not a reason to weaken the plugin exporter's atomic or strict behavior.
+
+The supplied agent-side export confirms the documented mismatch: 6,735
+document records versus 6,736 native locator records. This establishes the
+case for diagnostics and recovery, but does not by itself prove that every
+binary record passes validation or that a live semantic query succeeds.
+
+### Immediate next task: explicit plugin integration
+
+The next change belongs in the separate `/workspaces/Obsidian-Seek` plugin
+checkout. Couple MCP export generation to the successful semantic indexing
+commit so the document mapping and native vector sidecar come from the same
+generation. Make this addition deliberately obvious in source: use clearly
+named MCP/export helpers, a visibly marked integration block at the indexing
+call site, and concise rationale comments for the coupling and atomic commit
+boundary. Do not hide the behavior inside generic vector math or silently
+rewrite Seek's embedding calculations. The result must be easy to audit in a
+normal diff by a human, a diff parser, or a future AI maintainer.
+
 ## Current handoff: real export is ready
 
 The modified Seek plugin has been built, published, installed through BRAT, and

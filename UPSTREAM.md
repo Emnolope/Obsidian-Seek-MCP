@@ -50,3 +50,14 @@ export before changing compatibility code. Confirm the 384 dimension, format 3
 record layout, model revision, document-to-locator joins, and CRC checks. The
 revoked setup PAT is unrelated to upstream compatibility and must not be added
 to this document.
+
+The Node query adapter and fuzzy-loader diagnostics are MCP-specific additions;
+they are not changes to the vendored Seek snapshots or to Seek's strict export
+writer. Before a future Seek update, compare both the embedding/query path and
+the sidecar/export formats against the pinned commit.
+
+For the next plugin integration, preserve that boundary in the Seek checkout:
+keep MCP/export code in clearly named, visibly marked blocks and keep the
+indexing lifecycle hook separate from model, tokenizer, pooling, and
+quantization code. This is a maintenance requirement so source diffs reveal
+the coupling and its format-sensitive consequences immediately.

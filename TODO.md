@@ -21,6 +21,10 @@ Priority tags:
 
 ## Core correctness and consistency
 
+- [ ] `[critical]` Make the next Seek plugin integration visibly diff-friendly:
+  isolate MCP/export additions in clearly named functions or blocks, retain
+  explicit `MCP EXPORT` markers and short rationale comments, and keep the
+  indexing-to-export call site obvious to human and automated reviewers.
 - [ ] `[critical]` Add generation coupling between the native Seek sidecar and `MCP Export` manifest so vectors and document mappings cannot silently come from different builds.
 - [ ] `[critical]` Reject stale, incomplete, or mixed-generation exports with a clear diagnostic.
 - [ ] `[critical]` Confirm MCP result content is bounded so a large note cannot overwhelm PicoClaw's context window.
@@ -67,14 +71,20 @@ Priority tags:
 - [ ] `[critical]` Update `UPSTREAM.md`, `NOTICE.md`, the pinned commit, and compatibility tests with every upstream port.
 - [ ] `[critical]` Reject unknown sidecar formats rather than guessing how to decode them.
 - [ ] `[important]` Keep copied or closely adapted blocks visibly separated from new Node filesystem and MCP code.
+- [ ] `[important]` Apply the same visible-boundary rule in the Seek plugin:
+  do not bury MCP export behavior inside generic indexing code or silently
+  alter vector calculations; make the coupling and every format-sensitive
+  change easy to locate in a diff.
 - [ ] `[important]` Run MCP build/tests, Seek typecheck/tests, and a real-export validation after every compatibility update.
 - [ ] `[optional]` Automate an upstream diff report that highlights changes in the compatibility files and produces a porting checklist.
 
 ## Safe takeover commands
 
 Current handoff: plugin deployment, export generation, and vault synchronization
-are complete. Begin with the real-export smoke check in section 7. The setup PAT
-is no longer valid; do not rely on it or reproduce it.
+are complete. Query embedding and stale-document tolerance are implemented in
+the MCP server, but the real-export smoke check in section 7 remains the next
+validation gate. The setup PAT is no longer valid; do not rely on it or
+reproduce it.
 
 Before starting:
 
@@ -104,10 +114,11 @@ Validation order:
   precomputed 384-value query vector.
 6. Only after that consider implementation changes or new features.
 
-The current server does not embed text queries. It accepts precomputed query
-vectors only. Remaining known gaps include generation coupling, tombstones,
-note-level deduplication, response bounds, protocol edge-case handling, and
-automatic reload.
+The current server embeds text queries locally with the pinned Seek-compatible
+adapter and also accepts precomputed query vectors. Remaining known gaps
+include generation coupling, tombstones, note-level deduplication, response
+bounds, protocol edge-case handling, and automatic reload. The relaxed loader
+reports stale mappings but does not replace real-export validation.
 
 Run these from the MCP repository unless a command explicitly changes directory.
 They inspect, install, build, test, and compare; they do not write to the vault,

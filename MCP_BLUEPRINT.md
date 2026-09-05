@@ -3,7 +3,8 @@
 ## Runtime flow
 
 ```text
-PicoClaw -> MCP stdio -> semantic_search(queryVector, filters)
+PicoClaw -> MCP stdio -> semantic_search(queryText | queryVector, filters)
+                         -> embed queryText with Seek-compatible Node adapter
                          -> load committed Seek export
                          -> validate generation and dimensions
                          -> cosine-score stored vectors
@@ -22,14 +23,15 @@ server = instantiateMcpServer()
 index = loadSeekExport(SEEK_EXPORT_DIR)
 
 server.tool("index_status", () => index.status())
-server.tool("semantic_search", ({ queryVector, topK, pathPrefix }) => {
+server.tool("semantic_search", ({ queryText, queryVector, topK, pathPrefix }) => {
+    queryVector = queryVector ?? seekQueryEmbedder.embed(queryText)
     requireVectorDimension(queryVector, index.dimension)
     hits = []
     for document in index.documents:
         if pathPrefix and not document.notePath.startsWith(pathPrefix): continue
         score = cosine(queryVector, document.vector)
         hits.push({ document, score })
-    return groupChunksByNote(sortDescending(hits).take(topK))
+    return sortDescending(hits).take(topK)
 })
 server.tool("fetch_chunk", ({ chunkId }) => index.chunk(chunkId))
 server.tool("fetch_note", ({ notePath }) => {
@@ -68,7 +70,27 @@ traversal, and generation/count inconsistencies.
 - Read-only MCP tools; no note writes, Git commands, or reindexing.
 - Full scan for correctness; candidate generation can use Seek's sign-bit tier later.
 - Explicit export after a successful full reindex; no export on every edit.
-- Query-vector input first; a matching local embedding adapter follows separately.
+- Query text and query-vector input are both supported; the local adapter must
+    remain aligned with Seek's model, revision, pooling, normalization, and
+    output dimension.
+- A stale document mapping without a native vector is skipped and reported by
+    diagnostics. Malformed records and invalid binary data still fail loading.
+- Node uses the CPU execution provider for the query embedder; Seek uses WASM
+    in its browser runtime.
+
+## Next plugin-side integration
+
+The Seek plugin should trigger the MCP export only after the semantic indexing
+commit has completed successfully, then publish the document mapping and
+generation marker atomically with the native sidecar generation. This coupling
+must be explicit in the plugin source rather than hidden in shared vector
+calculation code.
+
+Use clearly named MCP/export functions and a visibly marked integration block
+at the indexing lifecycle boundary. Keep short comments explaining why the
+export is coupled there and which files form one generation. This makes the
+change easy to locate in a diff parser and easy to review without confusing
+MCP plumbing with Seek's embedding algorithm.
 
 ## Real-data validation handoff
 
@@ -86,6 +108,7 @@ Call `index_status` first and verify:
 - expected real chunk count, currently known to be `6736`
 
 Then test `fetch_chunk` and `fetch_note`, followed by `semantic_search` using a
-real 384-value query vector. Record whether all exported document IDs resolve to
-native locators and whether CRC validation succeeds across the real shard.
-Do not infer success from the existing synthetic unit tests alone.
+real query text and a valid 384-value query vector. Record the diagnostic
+counts, whether all exported document IDs resolve to native locators, and
+whether CRC validation succeeds across the real shard. Do not infer success
+from the existing synthetic unit tests alone.

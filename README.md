@@ -31,3 +31,21 @@ second time.
 
 The server is intentionally read-only. It does not edit notes, run Git, or
 modify Seek's index.
+
+## Current loader behavior
+
+The loader preserves strict validation for malformed records, invalid paths,
+dimension mismatches, and CRC failures. It tolerates a stale document mapping
+that has no matching native vector: that mapping is skipped and reported by
+`index_status` instead of preventing usable pairs from being searched. The
+diagnostics include `exportedDocuments`, `loadedDocuments`,
+`skippedDocuments`, and `orphanVectors`.
+
+The first natural-language query loads the pinned Granite model through
+`@huggingface/transformers` and may download it into the local model cache.
+Later queries reuse the in-process pipeline. The Node adapter uses CPU
+execution; Seek's browser-side WASM runtime is not used by the MCP process.
+
+The real synchronized `system-vault` export is separate from this repository.
+Its current export contains 6,735 document records and 6,736 native locator
+records, so a full consistency check remains an explicit validation task.

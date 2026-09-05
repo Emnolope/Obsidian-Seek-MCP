@@ -13,3 +13,7 @@ commit `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`:
 - `vendor/seek/src/embedder.ts`
 - `vendor/seek/src/iframe-runner.ts`
 - `vendor/seek/src/types.ts`
+
+The vendored snapshots retain their upstream attribution and license notices.
+`src/query-embedder.ts` is a Node runtime adapter around the Seek query path;
+the MCP transport, loader diagnostics, and export mapping are new project code.
