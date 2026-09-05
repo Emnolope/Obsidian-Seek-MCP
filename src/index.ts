@@ -27,6 +27,17 @@ export interface DocumentRecord {
 
 export interface SearchHit extends DocumentRecord { score: number }
 
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │ MCP ADAPTER CODE: new Node-side diagnostics; no direct Seek counterpart. │
+// │ Keep this block visible when porting changes from the plugin.              │
+// └─────────────────────────────────────────────────────────────────────────┘
+export interface LoadDiagnostics {
+  exportedDocuments: number;
+  loadedDocuments: number;
+  skippedDocuments: number;
+  orphanVectors: number;
+}
+
 function confined(root: string, notePath: string): string {
   const path = resolve(root, notePath);
   const rel = relative(resolve(root), path);
@@ -52,15 +63,18 @@ export class SeekIndex {
   readonly root: string;
   readonly meta: ExportMeta;
   readonly documents: DocumentRecord[];
+  readonly diagnostics: LoadDiagnostics;
 
   private constructor(
     root: string,
     meta: ExportMeta,
     documents: DocumentRecord[],
+    diagnostics: LoadDiagnostics,
   ) {
     this.root = root;
     this.meta = meta;
     this.documents = documents;
+    this.diagnostics = diagnostics;
   }
 
   static async load(root: string): Promise<SeekIndex> {
@@ -77,6 +91,7 @@ export class SeekIndex {
     const lines = (await readFile(join(documentRoot, 'documents.jsonl'), 'utf8')).split('\n').filter(Boolean);
     const documents: DocumentRecord[] = [];
     const ids = new Set<string>();
+    let skippedDocuments = 0;
     for (const line of lines) {
       const document = JSON.parse(line) as DocumentRecord;
       if (!document.chunkId || ids.has(document.chunkId)) throw new Error(`duplicate chunk id: ${document.chunkId}`);
@@ -84,7 +99,15 @@ export class SeekIndex {
         throw new Error(`invalid note path: ${document.notePath}`);
       }
       const entry = entries.get(document.chunkId);
-      if (!entry) throw new Error(`missing sidecar vector: ${document.chunkId}`);
+      // ┌───────────────────────────────────────────────────────────────────┐
+      // │ MCP ADAPTER CODE: fuzzy-search tolerance. A stale document mapping │
+      // │ is skipped; usable vector/document pairs remain searchable.        │
+      // │ Do not copy this behavior back into Seek's strict export writer.    │
+      // └───────────────────────────────────────────────────────────────────┘
+      if (!entry) {
+        skippedDocuments++;
+        continue;
+      }
       const tier = await readRecordAt(exportRoot, entry);
       const vector = Array.from(dequantizeInt8(tier.q, tier.s));
       if (vector.length !== meta.dimension) throw new Error(`dimension mismatch for chunk: ${document.chunkId}`);
@@ -92,12 +115,18 @@ export class SeekIndex {
       ids.add(document.chunkId);
       documents.push(document);
     }
-    if (documents.length !== meta.chunkCount) throw new Error(`chunk count mismatch: ${documents.length} != ${meta.chunkCount}`);
-    return new SeekIndex(exportRoot, meta, documents);
+    // MCP ADAPTER CODE: do not reject a partial/stale generation on count
+    // mismatch. Report the mismatch through index_status diagnostics instead.
+    return new SeekIndex(exportRoot, meta, documents, {
+      exportedDocuments: lines.length,
+      loadedDocuments: documents.length,
+      skippedDocuments,
+      orphanVectors: Math.max(0, entries.size - documents.length),
+    });
   }
 
   status() {
-    return { ...this.meta, loadedChunks: this.documents.length };
+    return { ...this.meta, loadedChunks: this.documents.length, diagnostics: this.diagnostics };
   }
 
   search(queryVector: number[], topK = 10, pathPrefix?: string): SearchHit[] {
