@@ -24,5 +24,10 @@ CLS pooling, normalization, and 384-dimensional output. The document records
 retain Seek's quantized `q`/`s` tier; the server dequantizes it using the
 vendored Seek-compatible implementation.
 
+When `queryText` is supplied by the MCP caller, the server vectorizes that text
+locally with the Seek-compatible adapter and compares the resulting vector to
+the already-indexed paragraph vectors. Retrieved paragraphs are not embedded a
+second time.
+
 The server is intentionally read-only. It does not edit notes, run Git, or
 modify Seek's index.

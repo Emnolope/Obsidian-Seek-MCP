@@ -33,7 +33,10 @@ export class SeekQueryEmbedder {
   private load(): Promise<FeatureExtractor> {
     if (!this.pipelinePromise) {
       this.pipelinePromise = pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, {
-        device: 'wasm',
+        // Seek uses WASM inside its browser iframe. Transformers.js Node uses
+        // the equivalent CPU execution provider; all model and postprocessing
+        // settings remain aligned with Seek.
+        device: 'cpu',
         dtype: ACTIVE_MODEL_SPEC.dtype,
         ...(ACTIVE_MODEL_SPEC.revision ? { revision: ACTIVE_MODEL_SPEC.revision } : {}),
       }) as Promise<FeatureExtractor>;
@@ -42,6 +45,9 @@ export class SeekQueryEmbedder {
   }
 
   async embed(text: string): Promise<Float32Array> {
+    if (typeof text !== 'string' || text.trim().length === 0) {
+      throw new Error('queryText must be a non-empty string');
+    }
     const extractor = await this.load();
     const output = await extractor(text, {
       pooling: 'cls',

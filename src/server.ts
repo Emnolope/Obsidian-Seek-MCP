@@ -21,6 +21,9 @@ async function handle(message: any): Promise<any> {
   if (message.method !== 'tools/call') return message.id === undefined ? undefined : { error: { code: -32601, message: 'method not found' }, id: message.id };
   try {
     const args = message.params?.arguments ?? {};
+    if (message.params.name === 'semantic_search' && args.queryVector === undefined && typeof args.queryText !== 'string') {
+      throw new Error('semantic_search requires queryText or queryVector');
+    }
     const value = message.params.name === 'index_status' ? index.status()
       : message.params.name === 'semantic_search' ? index.search(
         args.queryVector ?? Array.from(await queryEmbedder.embed(args.queryText)),
