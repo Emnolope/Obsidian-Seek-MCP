@@ -79,8 +79,9 @@ cosine scan. `src/server.ts` provides the stdio JSON-RPC loop, resolves
 vault path. `src/query-embedder.ts` handles natural-language queries using the
 pinned model and Node CPU execution.
 
-There is no CLI yet. There is no official MCP SDK dependency; transport is a
-small hand-written stdio loop.
+The working tree also contains a read-only CLI that uses the same vault
+resolver, index loader, and query embedder as the MCP server. There is no
+official MCP SDK dependency; transport is a small hand-written stdio loop.
 
 ## Validation baseline
 

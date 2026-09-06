@@ -84,5 +84,7 @@ coupling must be validated end to end.
 
 The current server supports natural-language query embedding with the pinned
 Seek-compatible model, or a caller-supplied 384-value query vector. Search is a
-full scan and returns chunk-level hits. Note-level grouping, response bounds,
-automatic reload, tombstone handling, and a CLI are not implemented yet.
+full scan and returns chunk-level hits. A read-only CLI now uses the same vault
+loader and index APIs for status, search, chunk, and note checks. Note-level
+grouping, response bounds, automatic reload, and tombstone handling are not
+implemented yet.

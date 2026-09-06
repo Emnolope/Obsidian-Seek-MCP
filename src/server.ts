@@ -1,30 +1,14 @@
 import { createInterface } from 'node:readline';
-import { join, resolve } from 'node:path';
-import { SeekIndex } from './index.ts';
+import { resolve } from 'node:path';
 import { SeekQueryEmbedder } from './query-embedder.ts';
+import { loadVaultIndex } from './vault.ts';
+import { SeekIndex } from './index.ts';
 
 const queryEmbedder = new SeekQueryEmbedder();
 const indexes = new Map<string, Promise<SeekIndex>>();
 
 function result(value: unknown) { return { content: [{ type: 'text', text: JSON.stringify(value) }] }; }
 function error(message: string) { return { isError: true, content: [{ type: 'text', text: message }] }; }
-
-async function loadVaultIndex(vaultDir: string): Promise<SeekIndex> {
-  const vaultRoot = resolve(vaultDir);
-  const candidates = [
-    join(vaultRoot, '.obsidian/plugins/seek/index'),
-    join(vaultRoot, 'Seek Index'),
-  ];
-  const errors: string[] = [];
-  for (const candidate of candidates) {
-    try {
-      return await SeekIndex.load(candidate);
-    } catch (error) {
-      errors.push(`${candidate}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-  throw new Error(`no valid Seek index found in vault; checked ${errors.join('; ')}`);
-}
 
 function getIndex(vaultDir: unknown): Promise<SeekIndex> {
   if (typeof vaultDir !== 'string' || !vaultDir.trim()) {

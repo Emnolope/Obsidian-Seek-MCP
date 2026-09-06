@@ -6,8 +6,9 @@ the Seek Obsidian plugin. The companion exporter is in the Seek source checkout
 at `/workspaces/Obsidian-Seek`; Obsidian exposes it as **Seek: Export complete
 MCP index**.
 
-The current MCP release is `Obsidian-Vault-MCP-v4`. There is no CLI in this
-release; the package currently provides the MCP stdio server only.
+The current published MCP release is `Obsidian-Vault-MCP-v4`. The working tree
+also includes a read-only CLI for direct status, search, chunk, and note checks;
+the CLI is not part of that published release yet.
 
 ## Run
 
@@ -62,6 +63,23 @@ second time.
 
 The server is intentionally read-only. It does not edit notes, run Git, or
 modify Seek's index.
+
+## CLI
+
+The same loader and search implementation is available for direct human or
+scripted checks:
+
+```sh
+npm run cli -- status /path/to/vault
+npm run cli -- search /path/to/vault "meeting notes about embeddings" --top-k 5
+npm run cli -- chunk /path/to/vault CHUNK_ID
+npm run cli -- note /path/to/vault Projects/example.md
+```
+
+Add `--json` to any command for machine-readable output. Search also accepts a
+precomputed vector with `--vector`; it must contain 384 comma-separated values
+or a JSON array. The CLI uses the same hidden-then-visible vault resolution as
+the MCP server and never writes to the vault.
 
 ## Current loader behavior
 

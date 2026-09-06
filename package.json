@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit",
+    "cli": "node --experimental-strip-types src/cli.ts",
     "start": "node --experimental-strip-types src/server.ts",
     "test": "node --experimental-strip-types --test test/*.test.ts"
   },

@@ -79,5 +79,6 @@ second vector representation or maintain a competing index state machine.
 - Stale mappings without native locators are skipped and reported.
 - Malformed records, invalid paths, dimension mismatches, and CRC failures are
   errors.
-- Automatic reload, tombstones, response-size limits, and CLI support are
-  future work.
+- A read-only CLI calls the same vault resolver and `SeekIndex` APIs for direct
+  status, search, chunk, and note checks.
+- Automatic reload, tombstones, and response-size limits are future work.

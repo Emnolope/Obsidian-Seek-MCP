@@ -27,6 +27,7 @@ handoff. Complete the critical items in order.
 - [x] Hidden-then-visible Seek location lookup.
 - [x] Lazy per-vault index loading and caching.
 - [x] Natural-language and precomputed-vector search inputs.
+- [x] Read-only CLI using the shared vault loader and `SeekIndex` APIs.
 - [x] Seek-compatible model, revision, pooling, normalization, and dimension.
 - [x] Native sidecar CRC, dimension, offset, and path validation.
 - [x] Stale document mappings are skipped and reported by `index_status`.
@@ -43,7 +44,7 @@ handoff. Complete the critical items in order.
   committed fixtures.
 - [ ] `[optional]` Add sign-bit candidate generation and reranking.
 - [ ] `[optional]` Reload a vault when its export generation changes.
-- [ ] `[optional]` Add a CLI that calls the same `SeekIndex` library as MCP.
+- [x] Add a CLI that calls the same `SeekIndex` library as MCP.
 
 ## Compatibility maintenance
 
