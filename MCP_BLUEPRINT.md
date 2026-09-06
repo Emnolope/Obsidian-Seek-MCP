@@ -3,133 +3,81 @@
 ## Runtime flow
 
 ```text
-PicoClaw -> MCP stdio -> semantic_search(queryText | queryVector, filters)
-                         -> embed queryText with Seek-compatible Node adapter
-                         -> load committed Seek export
-                         -> validate generation and dimensions
-                         -> cosine-score stored vectors
-                         -> resolve chunk -> note
-                         -> return ranked context
+PicoClaw -> MCP stdio -> tool(vaultDir, arguments)
+                         -> check hidden Seek index
+                         -> check visible Seek Index fallback
+                         -> load native sidecar + MCP manifest
+                         -> embed queryText or use queryVector
+                         -> cosine-score vectors
+                         -> return ranked chunks
 ```
 
-The current implementation accepts either query text or a precomputed query
-vector. Text embedding remains a separate adapter so the query uses the same
-model, revision, preprocessing, normalization, and 384-dimensional output as
-Seek.
+The vault directory is the only storage path exposed to the agent. The server
+owns the knowledge of Seek's two supported locations.
 
-## Pseudocode
+## Tool contract
 
 ```text
-server = instantiateMcpServer()
-index = loadSeekExport(SEEK_EXPORT_DIR)
-
-server.tool("index_status", () => index.status())
-server.tool("semantic_search", ({ queryText, queryVector, topK, pathPrefix }) => {
-    queryVector = queryVector ?? seekQueryEmbedder.embed(queryText)
-    requireVectorDimension(queryVector, index.dimension)
-    hits = []
-    for document in index.documents:
-        if pathPrefix and not document.notePath.startsWith(pathPrefix): continue
-        score = cosine(queryVector, document.vector)
-        hits.push({ document, score })
-    return sortDescending(hits).take(topK)
-})
-server.tool("fetch_chunk", ({ chunkId }) => index.chunk(chunkId))
-server.tool("fetch_note", ({ notePath }) => {
-    requireVaultRelativePath(notePath)
-    return index.note(notePath)
-})
-
-server.listenOnStdio()
+index_status({ vaultDir })
+semantic_search({ vaultDir, queryText | queryVector, topK?, pathPrefix? })
+fetch_chunk({ vaultDir, chunkId })
+fetch_note({ vaultDir, notePath })
 ```
+
+`semantic_search` accepts either ordinary text or exactly 384 numeric values.
+Text uses the pinned Seek-compatible Granite model through the Node CPU runtime.
+The default result limit is 10 and the allowed range is 1 through 100.
+
+## Location resolution
+
+For a vault root, the server tries:
+
+```text
+<vaultDir>/.obsidian/plugins/seek/index
+<vaultDir>/Seek Index
+```
+
+The hidden location is preferred. Both the native sidecar files and
+`MCP Export/export.meta.json` plus `MCP Export/documents.jsonl` must be present
+under the selected location. The plugin currently writes the MCP manifest to
+the hidden location unconditionally; fixing that producer-side mismatch is the
+next critical change for complete visible-mode support.
 
 ## Export contract
 
-Seek publishes one atomic document-mapping generation under `MCP Export/`,
-alongside its native sidecar files. Each document record contains the data needed
-to explain a vector result; the vector itself remains in Seek's native binary
-sidecar, so the MCP process uses the same locator and codec rules as Seek:
+The native sidecar remains the vector source:
+
+```text
+q:384 signed int8 bytes
+s:8-byte little-endian float64
+sign:48 packed sign-bit bytes
+crc:4-byte little-endian CRC-32
+```
+
+The MCP manifest contains the explanatory document layer:
 
 ```json
 {
   "chunkId": "...",
   "notePath": "Projects/example.md",
   "title": "Example",
-  "content": "...",
+  "content": "The chunk text",
   "chunkIndex": 0,
-    "mtime": 0
+  "mtime": 0
 }
 ```
 
-The commit marker records `schemaVersion`, `generation`, `modelId`, `revision`,
-`chunkerVersion`, `dimension`, and `chunkCount`. It is written last. The MCP
-server rejects incomplete exports, duplicate IDs, dimension mismatches, path
-traversal, and generation/count inconsistencies.
+The exporter must publish the manifest beside the same native sidecar location
+and only after the successful Seek indexing commit. It must not calculate a
+second vector representation or maintain a competing index state machine.
 
-## Atomic commit boundary rule
+## Deliberate boundaries
 
-The real invariant is not “export whenever convenient.” The real invariant is
-“publish the export only after a successful Seek commit that already contains the
-paired data the export depends on.”
-
-This is the same rule as the soup-kitchen analogy: the meal is not served when
-only the soup arrives, and it is not valid when the bowl and spoon are missing.
-The vector payload, file record, chunk metadata, and document mapping must ship as
-one generation or they are not a valid export.
-
-The correct plugin-side implementation is therefore a visible hook placed at the
-same successful indexing commit boundary. The hook is a thin MCP/export wrapper,
-not a new state machine. The export helper should remain separate and explicit,
-while the call site should be obvious in the diff so reviewers can see that the
-MCP export rides the same atomic commit as the native Seek data.
-
-## Deliberate v1 boundaries
-
-- Read-only MCP tools; no note writes, Git commands, or reindexing.
-- Full scan for correctness; candidate generation can use Seek's sign-bit tier later.
-- Explicit export after a successful full reindex; no export on every edit.
-- Query text and query-vector input are both supported; the local adapter must
-    remain aligned with Seek's model, revision, pooling, normalization, and
-    output dimension.
-- A stale document mapping without a native vector is skipped and reported by
-    diagnostics. Malformed records and invalid binary data still fail loading.
-- Node uses the CPU execution provider for the query embedder; Seek uses WASM
-    in its browser runtime.
-
-## Next plugin-side integration
-
-The Seek plugin should trigger the MCP export only after the semantic indexing
-commit has completed successfully, then publish the document mapping and
-generation marker atomically with the native sidecar generation. This coupling
-must be explicit in the plugin source rather than hidden in shared vector
-calculation code.
-
-Use clearly named MCP/export functions and a visibly marked integration block
-at the indexing lifecycle boundary. Keep short comments explaining why the
-export is coupled there and which files form one generation. This makes the
-change easy to locate in a diff parser and easy to review without confusing
-MCP plumbing with Seek's embedding algorithm.
-
-## Real-data validation handoff
-
-The export pipeline has run successfully on the phone and the resulting
-`Seek Index` data is available in the agent-side vault copy. The real export
-has now been loaded: 6,729 pairs are searchable, 6 document mappings are
-skipped, and 7 native locators have no matching exported document. The next
-implementation step is plugin-side generation coupling, not repeating the
-initial smoke-test setup.
-
-Start the server with `SEEK_EXPORT_DIR` set to the parent `Seek Index` directory.
-Call `index_status` first and verify:
-
-- dimension `384`
-- sidecar format `3`
-- model ID `tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX`
-- revision `54db88c5667bd79b4aea24ea6027a7ef45a7bbb5`
-- expected real chunk count, currently known to be `6736`
-
-The real checks already confirmed the sidecar dimensions, offsets, shard path,
-binary length, and all 6,736 CRCs. Continue to exercise `fetch_chunk`,
-`fetch_note`, and `semantic_search` after exporter changes, using both real
-query text and valid 384-value query vectors. Do not treat the current
-diagnostic tolerance as proof of a complete export.
+- MCP is read-only; no note writes, Git commands, or reindexing.
+- Search is currently a correctness-first full scan.
+- Results are chunk-level and are not yet grouped by note.
+- Stale mappings without native locators are skipped and reported.
+- Malformed records, invalid paths, dimension mismatches, and CRC failures are
+  errors.
+- Automatic reload, tombstones, response-size limits, and CLI support are
+  future work.

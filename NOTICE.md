@@ -16,4 +16,7 @@ commit `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`:
 
 The vendored snapshots retain their upstream attribution and license notices.
 `src/query-embedder.ts` is a Node runtime adapter around the Seek query path;
-the MCP transport, loader diagnostics, and export mapping are new project code.
+the MCP transport, vault resolver, loader diagnostics, and document manifest
+consumer are new project code. The plugin-side exporter lives in the separate
+Seek checkout and currently follows plugin commit
+`06b837126f66d54db97ef8785a7c95750e48c311`.
