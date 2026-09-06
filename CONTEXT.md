@@ -92,6 +92,36 @@ The document is ultimately about a tradeoff between two constraints:
 
 This means the key decision is not “which MCP server is best?” but “what format does the human-facing plugin actually store, and can the agent read that same format reliably?”
 
+## Critical design correction: do not invent a second system
+
+The biggest correction in the actual implementation is that the MCP export must not become a second indexing state machine. The exported data is not the core of the system; it is a read-only reflection of the real Seek commit.
+
+The design rule is the same as the soup-kitchen analogy:
+
+- the soup is the vector payload
+- the bowl is the related file/chunk metadata and mapping
+- the spoon is the final surfaced content needed to answer a query
+- all of them must be published together, or the meal is broken
+
+In other words, the real pairing invariant already exists in Seek's native atomic commit path. The vector, file mapping, and chunk metadata are committed together during the successful indexing pass. The MCP export should be attached to that same successful boundary, not rebuilt through a parallel generation protocol with its own bookkeeping.
+
+This is the “purple-shirt volunteer” pattern: the MCP/export layer is a visible extension beside the core system, not a rival engine pretending to own the underlying state. It sits next to the real worker, observes the successful commit, and publishes the export from that commit boundary. The export is easy to review, easy to reason about, and remains aligned with the upstream system instead of inventing a second source of truth.
+
+## Critical design correction: do not invent a second system
+
+The biggest correction in the actual implementation is that the MCP export must not become a second indexing state machine. The exported data is not the core of the system; it is a read-only reflection of the real Seek commit.
+
+The design rule is the same as the soup-kitchen analogy:
+
+- the soup is the vector payload
+- the bowl is the related file/chunk metadata and mapping
+- the spoon is the final surfaced content needed to answer a query
+- all of them must be published together, or the meal is broken
+
+In other words, the real pairing invariant already exists in Seek's native atomic commit path. The vector, file mapping, and chunk metadata are committed together during the successful indexing pass. The MCP export should be attached to that same successful boundary, not rebuilt through a parallel generation protocol with its own bookkeeping.
+
+This is the “purple-shirt volunteer” pattern: the MCP/export layer is a visible extension beside the core system, not a rival engine pretending to own the underlying state. It sits next to the real worker, observes the successful commit, and publishes the export from that commit boundary. The export is easy to review, easy to reason about, and remains aligned with the upstream system instead of inventing a second source of truth.
+
 ## Desired solution architecture
 
 The desired architecture is a two-part system:
@@ -186,9 +216,9 @@ used to run the explicit export command on the phone. The GitHub release is
 `1.1.3-mcp-export-v2` and contains `main.js`, `manifest.json`, and `styles.css`.
 
 The exported data has been synchronized into the agent-side `system-vault`
-copy. The next agent should test the MCP server against this real export rather
-than restart plugin deployment or regenerate the export without evidence that
-the files are incomplete.
+copy. The MCP server has now been tested against this real export. Do not
+restart plugin deployment or regenerate the export without addressing the
+document-to-locator mismatch.
 
 The expected input root is the parent `Seek Index` directory containing:
 
@@ -200,11 +230,10 @@ MCP Export/export.meta.json
 MCP Export/documents.jsonl
 ```
 
-The immediate validation target is end to end: load `index_status`, verify the
-real model, revision, dimension, and count, then exercise `fetch_chunk`,
-`fetch_note`, and `semantic_search` with a valid 384-value query vector. The
-existing unit tests use synthetic data and do not replace this real-export
-smoke test.
+The real-export check confirmed the model, revision, dimension, sidecar format,
+binary layout, and CRCs. The loader reports 6,729 searchable pairs, 6 skipped
+document mappings, and 7 orphan native locators. The next implementation step
+is generation coupling in the plugin's indexing/export lifecycle.
 
 The setup PAT was revoked/burned and must not be expected to work. Use existing
 Git authentication or a newly supplied local credential if a future sync needs

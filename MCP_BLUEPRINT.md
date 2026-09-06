@@ -12,9 +12,10 @@ PicoClaw -> MCP stdio -> semantic_search(queryText | queryVector, filters)
                          -> return ranked context
 ```
 
-The first implementation accepts a precomputed query vector. Text embedding is
-deliberately a separate adapter because the query must use the same model,
-revision, preprocessing, normalization, and 384-dimensional output as Seek.
+The current implementation accepts either query text or a precomputed query
+vector. Text embedding remains a separate adapter so the query uses the same
+model, revision, preprocessing, normalization, and 384-dimensional output as
+Seek.
 
 ## Pseudocode
 
@@ -65,6 +66,23 @@ The commit marker records `schemaVersion`, `generation`, `modelId`, `revision`,
 server rejects incomplete exports, duplicate IDs, dimension mismatches, path
 traversal, and generation/count inconsistencies.
 
+## Atomic commit boundary rule
+
+The real invariant is not “export whenever convenient.” The real invariant is
+“publish the export only after a successful Seek commit that already contains the
+paired data the export depends on.”
+
+This is the same rule as the soup-kitchen analogy: the meal is not served when
+only the soup arrives, and it is not valid when the bowl and spoon are missing.
+The vector payload, file record, chunk metadata, and document mapping must ship as
+one generation or they are not a valid export.
+
+The correct plugin-side implementation is therefore a visible hook placed at the
+same successful indexing commit boundary. The hook is a thin MCP/export wrapper,
+not a new state machine. The export helper should remain separate and explicit,
+while the call site should be obvious in the diff so reviewers can see that the
+MCP export rides the same atomic commit as the native Seek data.
+
 ## Deliberate v1 boundaries
 
 - Read-only MCP tools; no note writes, Git commands, or reindexing.
@@ -94,9 +112,12 @@ MCP plumbing with Seek's embedding algorithm.
 
 ## Real-data validation handoff
 
-The export pipeline has now run successfully on the phone and the resulting
-`Seek Index` data is available in the agent-side vault copy. The next step is
-validation of this blueprint against real data, not further export design.
+The export pipeline has run successfully on the phone and the resulting
+`Seek Index` data is available in the agent-side vault copy. The real export
+has now been loaded: 6,729 pairs are searchable, 6 document mappings are
+skipped, and 7 native locators have no matching exported document. The next
+implementation step is plugin-side generation coupling, not repeating the
+initial smoke-test setup.
 
 Start the server with `SEEK_EXPORT_DIR` set to the parent `Seek Index` directory.
 Call `index_status` first and verify:
@@ -107,8 +128,8 @@ Call `index_status` first and verify:
 - revision `54db88c5667bd79b4aea24ea6027a7ef45a7bbb5`
 - expected real chunk count, currently known to be `6736`
 
-Then test `fetch_chunk` and `fetch_note`, followed by `semantic_search` using a
-real query text and a valid 384-value query vector. Record the diagnostic
-counts, whether all exported document IDs resolve to native locators, and
-whether CRC validation succeeds across the real shard. Do not infer success
-from the existing synthetic unit tests alone.
+The real checks already confirmed the sidecar dimensions, offsets, shard path,
+binary length, and all 6,736 CRCs. Continue to exercise `fetch_chunk`,
+`fetch_note`, and `semantic_search` after exporter changes, using both real
+query text and valid 384-value query vectors. Do not treat the current
+diagnostic tolerance as proof of a complete export.

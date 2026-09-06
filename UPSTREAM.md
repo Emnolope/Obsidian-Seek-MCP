@@ -45,11 +45,21 @@ and released as `1.1.3-mcp-export-v2`, installed through BRAT, and used to
 produce the real MCP export. No upstream compatibility update is pending for
 the immediate handoff.
 
-The next agent should validate the existing implementation against that real
-export before changing compatibility code. Confirm the 384 dimension, format 3
-record layout, model revision, document-to-locator joins, and CRC checks. The
+The existing implementation has been validated against the supplied real
+export: the 384 dimension, format 3 record layout, model revision, binary
+offsets, and all 6,736 CRC checks pass. The export still has 6 skipped document
+mappings and 7 orphan native locators. The next work is plugin-side generation
+coupling and lifecycle integration, not compatibility-code discovery. The
 revoked setup PAT is unrelated to upstream compatibility and must not be added
 to this document.
+
+The critical rule for the plugin-side integration is that the MCP export is not a
+second state machine. It is a visible extension of Seek's real successful commit
+path. The native vector sidecar, chunk metadata, and document mapping are already
+paired by the upstream atomic commit; the MCP export must be attached to that
+same boundary. This preserves the single source of truth, keeps the integration
+auditable in a diff, and avoids inventing a separate generation protocol that
+can drift from the real index.
 
 The Node query adapter and fuzzy-loader diagnostics are MCP-specific additions;
 they are not changes to the vendored Seek snapshots or to Seek's strict export

@@ -2,6 +2,31 @@
 
 This list is ordered by dependency and timeline. Complete earlier items before later items unless a task is explicitly marked optional.
 
+## NEXT STEP FOR THE NEXT AGENT
+
+Run the PicoClaw MCP stdio smoke test. Do not start another architecture
+redesign or rework the Seek exporter first: the plugin-side commit-boundary
+integration is already implemented in `/workspaces/Obsidian-Seek` and verified
+with its focused test suite.
+
+From `/workspaces/Obsidian-Seek-MCP`, use the agent-side export directory and
+verify this exact sequence over stdin/stdout:
+
+1. Start `npm start` with `SEEK_EXPORT_DIR` set to the agent vault's parent
+  `Seek Index` directory.
+2. Send `initialize` and confirm a successful JSON-RPC response.
+3. Send `tools/list` and confirm `index_status`, `semantic_search`,
+  `fetch_chunk`, and `fetch_note` are advertised.
+4. Send `tools/call` for `semantic_search` with a valid 384-value
+  `queryVector`.
+5. Send a second `semantic_search` call with `queryText` and confirm the
+  response is valid after the local query embedder loads.
+
+Acceptance evidence must include a clean protocol exchange, no diagnostic
+output on stdout, and a successful semantic-search result. Record any real
+export path or model-cache prerequisite that prevents the check. After this
+passes, mark only the stdio item below complete and proceed to response bounds.
+
 Priority tags:
 
 - `[critical]` Required for a usable and trustworthy release.
@@ -12,12 +37,12 @@ Priority tags:
 
 - [x] `[critical]` Generate a complete export from the modified Seek plugin using **Seek: Export complete MCP index**.
 - [x] `[critical]` Confirm the export layout contains Seek's native `meta.*.json`, `index.*.jsonl`, and `embeddings.*.bin` files plus `MCP Export/export.meta.json` and `MCP Export/documents.jsonl`.
-- [ ] `[critical]` Run the MCP loader against the real export and verify that every vector ID resolves to a document, note path, title, and chunk body.
-- [ ] `[critical]` Validate all real sidecar records: dimensions, offsets, shard paths, binary lengths, and CRC32 checks.
+- [x] `[critical]` Run the MCP loader against the real export and record its diagnostics: 6,729 searchable pairs, 6 skipped document mappings, and 7 orphan locators remain from the supplied export.
+- [x] `[critical]` Validate all real sidecar records: 384 dimensions, valid offsets and shard paths, binary length `6,736 * 444`, and 6,736 passing CRC32 checks.
 - [x] `[critical]` Verify the two-vault Git workflow: human vault exports, Git synchronizes, agent vault pulls, and the MCP server remains read-only.
 - [x] `[critical]` Add a local query-embedding adapter that uses the exact Seek model, revision, tokenizer, preprocessing, pooling, normalization, and 384-dimensional output.
 - [x] `[critical]` Add natural-language query support to `semantic_search` while retaining precomputed-vector input for diagnostics and tests.
-- [ ] `[critical]` Verify that PicoClaw can launch the MCP process over stdio and successfully call `initialize`, `tools/list`, and `semantic_search`.
+- [ ] `[NEXT] [critical]` Verify that PicoClaw can launch the MCP process over stdio and successfully call `initialize`, `tools/list`, and `semantic_search`.
 
 ## Core correctness and consistency
 
@@ -25,7 +50,7 @@ Priority tags:
   isolate MCP/export additions in clearly named functions or blocks, retain
   explicit `MCP EXPORT` markers and short rationale comments, and keep the
   indexing-to-export call site obvious to human and automated reviewers.
-- [ ] `[critical]` Add generation coupling between the native Seek sidecar and `MCP Export` manifest so vectors and document mappings cannot silently come from different builds.
+- [ ] `[critical]` Attach the MCP export to the same successful Seek commit boundary that already writes the native sidecar and document mapping data, so vectors and document mappings cannot silently come from different builds.
 - [ ] `[critical]` Reject stale, incomplete, or mixed-generation exports with a clear diagnostic.
 - [ ] `[critical]` Confirm MCP result content is bounded so a large note cannot overwhelm PicoClaw's context window.
 - [ ] `[critical]` Ensure all path-based operations reject absolute paths, traversal, encoded traversal, and invalid separators.
@@ -80,11 +105,12 @@ Priority tags:
 
 ## Safe takeover commands
 
-Current handoff: plugin deployment, export generation, and vault synchronization
-are complete. Query embedding and stale-document tolerance are implemented in
-the MCP server, but the real-export smoke check in section 7 remains the next
-validation gate. The setup PAT is no longer valid; do not rely on it or
-reproduce it.
+Current handoff: plugin deployment, export generation, vault synchronization,
+and the visible export hook on Seek's successful commit boundary are complete.
+Query embedding, real-export loading, stale-document tolerance, and the focused
+commit-boundary regression test are implemented and validated. The immediate
+next task is the PicoClaw MCP stdio smoke test described at the top of this
+file. The setup PAT is no longer valid; do not rely on it or reproduce it.
 
 Before starting:
 
@@ -104,21 +130,21 @@ Before starting:
 
 Validation order:
 
-1. Run the build and existing tests.
-2. Start the server against the real export and call `index_status` first.
-3. Verify the real model ID, revision, format `3`, dimension `384`, and the
-  expected count of `6736` chunks.
-4. Verify that every exported document ID joins to a native locator and that
-  all binary records pass dimension, offset, length, and CRC checks.
-5. Exercise `fetch_chunk`, `fetch_note`, and `semantic_search` with a valid
-  precomputed 384-value query vector.
-6. Only after that consider implementation changes or new features.
+1. Run the build and existing tests after compatibility changes.
+2. Load the supplied export and call `index_status` first.
+3. Confirm model ID, revision, format `3`, dimension `384`, and diagnostic
+   counts; do not expect document and locator counts to match until the plugin
+   export lifecycle is fixed.
+4. Exercise `fetch_chunk`, `fetch_note`, and `semantic_search` with text and
+   precomputed 384-value query inputs.
+5. Re-run full sidecar validation after each export-format change.
 
 The current server embeds text queries locally with the pinned Seek-compatible
 adapter and also accepts precomputed query vectors. Remaining known gaps
-include generation coupling, tombstones, note-level deduplication, response
-bounds, protocol edge-case handling, and automatic reload. The relaxed loader
-reports stale mappings but does not replace real-export validation.
+include plugin-side generation coupling, tombstones, note-level deduplication,
+response bounds, protocol edge-case handling, and automatic reload. The
+relaxed loader reports stale mappings while the exporter is being corrected; it
+does not make an inconsistent export equivalent to a complete one.
 
 Run these from the MCP repository unless a command explicitly changes directory.
 They inspect, install, build, test, and compare; they do not write to the vault,
@@ -192,8 +218,8 @@ SEEK_EXPORT_DIR="$SEEK_EXPORT_DIR" npm start
 
 The process speaks MCP over stdin/stdout. Do not write diagnostic text to
 stdout; stdout is the protocol channel. Stop it with the normal terminal
-interrupt when finished. The current server requires a precomputed 384-value
-query vector; ordinary text-query embedding is still a TODO.
+interrupt when finished. The server accepts either `queryText` or a
+precomputed 384-value query vector.
 
 ### 6. Inspect format-sensitive upstream changes
 

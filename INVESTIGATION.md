@@ -392,16 +392,15 @@ invalidRecords: 0
 crcFailures: 0
 ```
 
-Those real-sidecar checks predate the new MCP document export and do not prove
-that all 6,736 IDs resolve through the new `MCP Export/documents.jsonl` join.
-That complete real-export validation is still required.
+The MCP loader now performs the real document join and reports 6,729 usable
+pairs, 6 skipped mappings, and 7 orphan native locators. The join is therefore
+known to be incomplete; fixing the plugin export lifecycle is the next task.
 
 ## Known technical gaps
 
-- No local query-text embedding adapter exists yet. A caller must provide a
-  matching 384-dimensional query vector.
-- The real 6,736-record export has not yet been loaded through the new MCP
-  loader and verified end to end.
+- The real export loads through the MCP loader, but its document join is
+  incomplete: 6,729 pairs are searchable, 6 mappings are skipped, and 7 native
+  locators are orphaned.
 - The manifest generation ID is not coupled to native sidecar metadata.
 - Native tombstones are not currently handled by the MCP sidecar scanner.
 - The MCP server uses a minimal hand-written JSON-RPC stdio loop rather than a
