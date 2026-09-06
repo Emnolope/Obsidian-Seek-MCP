@@ -8,21 +8,43 @@ MCP index**.
 
 ## Run
 
-The server reads `SEEK_EXPORT_DIR` (or the first positional argument), defaulting
-to `./Seek Index`:
+The server is a single multi-vault MCP process. It does not bind to one vault
+at startup. Each tool call supplies a `vaultDir` pointing to an Obsidian vault:
 
 ```sh
 npm install
-SEEK_EXPORT_DIR="/path/to/Seek Index" npm start
+npm start
 ```
 
 It exposes `index_status`, `semantic_search`, `fetch_chunk`, and `fetch_note`
-over MCP stdio. The directory must contain Seek's native sidecar files and its
-`MCP Export/` document mapping. `semantic_search` accepts either `queryText` or
-a precomputed `queryVector`; the local adapter uses Seek's model, revision,
-CLS pooling, normalization, and 384-dimensional output. The document records
-retain Seek's quantized `q`/`s` tier; the server dequantizes it using the
-vendored Seek-compatible implementation.
+over MCP stdio. Every tool accepts `vaultDir`, which may be an absolute or
+relative path anywhere the process has filesystem access. The server checks
+Seek's hidden default index directory,
+`<vaultDir>/.obsidian/plugins/seek/index`, first and then the supported visible
+fallback, `<vaultDir>/Seek Index`; the caller never needs to know which plugin
+setting is active.
+`semantic_search` accepts either `queryText` or a precomputed `queryVector`; the
+local adapter uses Seek's model, revision, CLS pooling, normalization, and
+384-dimensional output. The document records retain Seek's quantized `q`/`s`
+tier; the server dequantizes it using the vendored Seek-compatible
+implementation.
+
+Indexes are loaded lazily and cached by their resolved vault, so the same
+four MCP tools work across any number of vaults without registering separate
+tool names or separate MCP servers. `vaultDir` is the only path exposed to the
+agent; the operating system still controls which directories the PicoClaw
+process can read.
+
+For example, a PicoClaw registration needs only the server command:
+
+```sh
+picoclaw mcp add --force --no-deferred obsidian-seek -- \
+	node --experimental-strip-types \
+	/path/to/Obsidian-Seek-MCP/src/server.ts
+```
+
+PicoClaw then supplies a different `vaultDir` when it calls the same
+`semantic_search`, `fetch_note`, or `fetch_chunk` tool.
 
 When `queryText` is supplied by the MCP caller, the server vectorizes that text
 locally with the Seek-compatible adapter and compares the resulting vector to
