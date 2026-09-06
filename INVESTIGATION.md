@@ -77,7 +77,7 @@ dimensions, offsets, shard paths, and CRCs.
 cosine scan. `src/server.ts` provides the stdio JSON-RPC loop, resolves
 `vaultDir` against hidden then visible locations, and caches indexes by resolved
 vault path. `src/query-embedder.ts` handles natural-language queries using the
-pinned model and Node CPU execution.
+pinned model and the copied Transformers.js web/WASM execution path.
 
 The working tree also contains a read-only CLI that uses the same vault
 resolver, index loader, and query embedder as the MCP server. There is no

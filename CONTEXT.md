@@ -88,3 +88,27 @@ full scan and returns chunk-level hits. A read-only CLI now uses the same vault
 loader and index APIs for status, search, chunk, and note checks. Note-level
 grouping, response bounds, automatic reload, and tombstone handling are not
 implemented yet.
+
+## Compatibility philosophy
+
+Seek-derived code and MCP code have different ownership even though they are
+fully integrated at runtime. Keep copied Seek blocks and snapshots visibly
+separate, preserve their upstream layout, naming, ordering, comments, and
+control flow, and mark every necessary adaptation at a narrow boundary. The
+priority is the smallest edit distance from Seek, not the smallest amount of
+copied code. Copying extra upstream functions is good when it keeps the port
+mechanically comparable. Do not refactor copied code into local style or mix
+unrelated MCP behavior into it.
+
+This minimizes the diff footprint. Updating compatibility code should be a
+mechanical comparison task: identify the copied block, inspect that block in
+the newer Seek source, and replace the local block with the updated version.
+The source path and pinned commit must make that comparison possible without
+requiring a maintainer to reverse-engineer or redesign the algorithm first.
+
+The implementation preference is intentionally broad: copy the largest
+relevant Seek file or block that can be integrated, then adapt its imports and
+platform edges. Do not extract only the few lines that seem necessary and
+rebuild the surrounding behavior from memory. A larger wholesale copy is
+better when it keeps the plugin's behavior and update path obvious; MCP code
+belongs around that copy as a wrapper or at clearly marked boundaries.

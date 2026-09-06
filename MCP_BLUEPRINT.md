@@ -25,7 +25,8 @@ fetch_note({ vaultDir, notePath })
 ```
 
 `semantic_search` accepts either ordinary text or exactly 384 numeric values.
-Text uses the pinned Seek-compatible Granite model through the Node CPU runtime.
+Text uses the pinned Seek-compatible Granite model through the copied
+Transformers.js web bundle and the Seek-compatible WASM runtime path.
 The default result limit is 10 and the allowed range is 1 through 100.
 
 ## Location resolution

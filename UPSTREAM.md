@@ -21,9 +21,58 @@ The MCP transport, vault-location resolver, document manifest contract, loader
 diagnostics, and query runtime adapter are new boundary code. They are not
 upstream Seek files.
 
+## Copy-and-port policy
+
+Compatibility code copied from Seek must remain mechanically recognizable and
+replaceable. Treat each copied block or file as an upstream island: preserve
+its structure, naming, ordering, and comments. The primary optimization is the
+smallest edit distance from Seek, not the smallest number of copied lines.
+Copying extra upstream functions is preferable to rewriting or compressing
+their control flow when that makes future comparison and replacement easier.
+Only make a runtime adaptation where it is strictly necessary, and mark it at
+the boundary instead of quietly blending MCP behavior into copied code.
+
+The copied code is separate from the MCP codebase in ownership, but integrated
+through explicit interfaces. This separation minimizes the diff footprint and
+makes updates procedural rather than interpretive. A maintainer should be able
+to identify a copied block, return to its original Seek source, compare the
+corresponding updated block, and mechanically copy the update into this
+repository without needing to rediscover the algorithm.
+
+When a port requires a change, keep the adapter visibly separate from the
+upstream block and document the source path, source commit, and reason for the
+adaptation. Do not refactor copied code for local style, do not mix unrelated
+MCP changes into it, and do not make a copied snapshot look locally authored.
+New MCP behavior belongs in adjacent adapter modules or clearly marked
+boundary sections. The goal is maximum source fidelity and code that is easy
+for both humans and automated tools to update by comparison and replacement.
+
+### Copy first, adapt second
+
+For a compatibility feature, start by copying the largest relevant Seek file,
+module, or function block that can run in this repository. Do not begin by
+designing a smaller replacement. Whole-file copies and large copied blocks are
+preferred when they keep the plugin's control flow obvious, even if only part
+of the copied surface is used immediately.
+
+After the copy is present, make the runtime adaptation in a separate wrapper,
+or in a small, explicitly marked section at the edge of the copied code. The
+copied code should remain the dominant implementation and the MCP code should
+remain the integration layer. When a plugin file has only a few incompatible
+imports or platform calls, copy the file and change those edges rather than
+reimplementing its internal functions elsewhere.
+
+This is deliberately a broad-transplant policy rather than a minimal-rewrite
+policy: prefer a recognizable wholesale copy over a clever small rewrite. The
+test for success is whether a maintainer can diff this file against Seek, find
+the changed edges immediately, and paste a newer Seek version over it without
+reconstructing the design.
+
 `src/query-embedder.ts` follows Seek's query preprocessing, pooling,
-normalization, model, revision, token limit, and output dimension, but replaces
-the browser iframe/WASM runtime with Node CPU execution.
+normalization, model, revision, token limit, output dimension, and WASM glue
+selection. The copied web runtime remains the execution path; the MCP-specific
+adaptation only replaces the plugin iframe/message boundary with a Node import
+boundary.
 
 ## Maintenance procedure
 

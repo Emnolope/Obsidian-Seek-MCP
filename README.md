@@ -96,10 +96,11 @@ The vector payload, the file/chunk mapping, and the document metadata must be
 published together. If they are split across generations, the loader treats the
 result as stale or incomplete instead of pretending it is a valid atomic export.
 
-The first natural-language query loads the pinned Granite model through
-`@huggingface/transformers` and may download it into the local model cache.
-Later queries reuse the in-process pipeline. The Node adapter uses CPU
-execution; Seek's browser-side WASM runtime is not used by the MCP process.
+The first natural-language query loads the pinned Granite model through the
+vendored Seek-compatible Transformers.js web bundle and may download it from
+the model host. Later queries reuse the in-process pipeline. The MCP adapter
+selects the same WASM execution path and plain glue variant that Seek uses on
+Android; it does not install or import `onnxruntime-node`.
 
 The real synchronized `system-vault` export is separate from this repository.
 Its current export contains 6,735 document records and 6,736 native locator
@@ -110,3 +111,24 @@ The next change belongs in the separate plugin checkout: make the MCP export
 destination follow the selected hidden or visible sidecar location while
 retaining the successful-commit boundary. Keep that integration explicit and
 diff-friendly; do not alter Seek's embedding calculations.
+
+## Compatibility editing rule
+
+Seek-derived code is kept as visibly separate, mechanically replaceable
+compatibility code. The priority is the smallest edit distance from Seek, not
+the smallest port: copying extra upstream functions is good when it preserves
+the original structure, names, ordering, comments, and control flow. A future
+update should be handled by finding the corresponding Seek block, comparing it
+with the new version, and copying the updated block with a small diff. Put
+MCP-specific behavior in adjacent adapters or clearly marked boundary
+sections instead of blending it into copied code. This keeps the code fully
+integrated at runtime while making the port easy to update without first
+understanding or redesigning the upstream algorithm.
+
+When adding or repairing compatibility behavior, copy the largest relevant
+Seek file or code block first. A broad wholesale transplant is preferred to a
+small bespoke rewrite; unused copied helpers are acceptable when they preserve
+the plugin's control flow and make later updates mechanical. Then put the MCP
+runtime differences in a wrapper or a clearly marked edge section. The copied
+Seek code should be the obvious center of the implementation, with MCP code
+providing the surrounding integration.
