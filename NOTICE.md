@@ -23,6 +23,9 @@ commit `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`:
 
 The vendored snapshots retain their upstream attribution and license notices.
 `src/query-embedder.ts` is an MCP process adapter around the Seek query path;
+`src/SEEK-COMPATIBILITY.md` is the MCP-owned reverse-engineering and porting
+specification, and `src/seek-compatibility.ts` is its MCP-owned executable
+contract for the pinned model, backend policy, and vector post-processing;
 `vendor/seek/runtime/transformers.web.js` is the copied Transformers.js web
 runtime used to preserve Seek's WASM path. The MCP transport, vault resolver,
 loader diagnostics, and document manifest consumer are new project code. The

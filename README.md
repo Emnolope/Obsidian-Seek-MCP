@@ -33,6 +33,15 @@ local adapter uses Seek's model, revision, CLS pooling, normalization, and
 tier; the server dequantizes it using the vendored Seek-compatible
 implementation.
 
+The compatibility contract is documented in
+[`src/SEEK-COMPATIBILITY.md`](src/SEEK-COMPATIBILITY.md) and implemented by
+[`src/seek-compatibility.ts`](src/seek-compatibility.ts). The default query
+backend is WASM. Set `SEEK_MCP_DEVICE=auto` to attempt WebGPU and fall back to
+WASM, or `SEEK_MCP_DEVICE=webgpu` to require WebGPU and fail instead of
+silently falling back. Backend choice changes execution environment and speed,
+not the model/vector-space contract. A plain Node or Termux process may not
+provide usable WebGPU even when the phone's browser does.
+
 The current Seek exporter writes `MCP Export/` under the hidden path
 unconditionally. The visible fallback is therefore a resolver capability, not
 proof that visible-mode exports are currently produced coherently. Until the
@@ -98,19 +107,22 @@ result as stale or incomplete instead of pretending it is a valid atomic export.
 
 The first natural-language query loads the pinned Granite model through the
 vendored Seek-compatible Transformers.js web bundle and may download it from
-the model host. Later queries reuse the in-process pipeline. The MCP adapter
-selects the same WASM execution path and plain glue variant that Seek uses on
-Android; it does not install or import `onnxruntime-node`.
+the model host. Later queries reuse the in-process pipeline. The default MCP
+adapter selects the same WASM execution path and plain glue variant that Seek
+uses on Android; it does not install or import `onnxruntime-node`. The optional
+`auto` and strict `webgpu` modes are a runtime experiment, not proof that a
+Termux or server environment can reproduce the plugin's browser WebGPU path.
 
 The real synchronized `system-vault` export is separate from this repository.
 Its current export contains 6,735 document records and 6,736 native locator
 records, so a full consistency check and exporter correction remain explicit
 validation tasks.
 
-The next change belongs in the separate plugin checkout: make the MCP export
-destination follow the selected hidden or visible sidecar location while
+The next exporter change belongs in the separate plugin checkout: make the MCP
+export destination follow the selected hidden or visible sidecar location while
 retaining the successful-commit boundary. Keep that integration explicit and
-diff-friendly; do not alter Seek's embedding calculations.
+diff-friendly; do not alter Seek's embedding calculations. After that, add
+resolver and MCP protocol tests, then bound search and fetch responses.
 
 ## Compatibility editing rule
 

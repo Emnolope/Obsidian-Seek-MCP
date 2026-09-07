@@ -26,7 +26,11 @@ fetch_note({ vaultDir, notePath })
 
 `semantic_search` accepts either ordinary text or exactly 384 numeric values.
 Text uses the pinned Seek-compatible Granite model through the copied
-Transformers.js web bundle and the Seek-compatible WASM runtime path.
+Transformers.js web bundle. WASM is the default runtime path. The optional
+`SEEK_MCP_DEVICE=auto` mode attempts WebGPU and falls back to WASM;
+`SEEK_MCP_DEVICE=webgpu` requires WebGPU. These modes must preserve the same
+model, tokenizer, dtype, pooling, normalization, and output dimension. Browser
+WebGPU availability on the phone is not assumed by the server.
 The default result limit is 10 and the allowed range is 1 through 100.
 
 ## Location resolution
@@ -82,4 +86,7 @@ second vector representation or maintain a competing index state machine.
   errors.
 - A read-only CLI calls the same vault resolver and `SeekIndex` APIs for direct
   status, search, chunk, and note checks.
+- `src/SEEK-COMPATIBILITY.md` specifies the tensor/vector contract and
+  `src/seek-compatibility.ts` implements its model, backend, and output rules;
+  update them together.
 - Automatic reload, tombstones, and response-size limits are future work.

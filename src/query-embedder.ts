@@ -1,27 +1,16 @@
+import { prepareVector, requestedDevice, SEEK_MODEL, type SeekDevice } from './seek-compatibility.ts';
+
 // Compatibility boundary: vendor/seek/src/model-registry.ts is retained
 // byte-for-byte, but its Obsidian TypeScript imports are not NodeNext-resolvable.
 // Keep this runtime spec mechanically aligned with Seek's ACTIVE_MODEL_SPEC.
 const ACTIVE_MODEL_SPEC = {
-  repo: 'tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX',
-  revision: '54db88c5667bd79b4aea24ea6027a7ef45a7bbb5',
-  dim: 384,
-  dtype: 'q4' as const,
+  repo: SEEK_MODEL.repo,
+  revision: SEEK_MODEL.revision,
+  dim: SEEK_MODEL.dimension,
+  dtype: SEEK_MODEL.dtype,
 };
 
 export const QUERY_EMBEDDING_DIM = ACTIVE_MODEL_SPEC.dim;
-
-// Copied from Seek's iframe-runner.ts. The Node adapter keeps this output rule
-// identical while replacing only Seek's browser iframe runtime.
-function sliceAndRenormalize(vec: ArrayLike<number>, targetDim: number): Float32Array {
-  if (vec.length <= targetDim) return Float32Array.from(vec);
-  const sliced = new Float32Array(targetDim);
-  for (let i = 0; i < targetDim; i++) sliced[i] = vec[i];
-  let norm = 0;
-  for (let i = 0; i < targetDim; i++) norm += sliced[i] * sliced[i];
-  norm = Math.sqrt(norm);
-  if (norm > 0) for (let i = 0; i < targetDim; i++) sliced[i] /= norm;
-  return sliced;
-}
 
 type FeatureExtractor = (text: string, options: Record<string, unknown>) => Promise<any>;
 
@@ -85,19 +74,28 @@ export class SeekQueryEmbedder {
 
   private load(): Promise<FeatureExtractor> {
     if (!this.pipelinePromise) {
-      this.pipelinePromise = loadRuntime().then(({ pipeline }) => pipeline(
-        'feature-extraction',
-        ACTIVE_MODEL_SPEC.repo,
-        {
-          // Copied from Seek's loadModel WASM fallback. Keep model, revision,
-          // and q4 selection aligned with the vectors produced by the plugin.
-          device: 'wasm',
-          dtype: ACTIVE_MODEL_SPEC.dtype,
-          ...(ACTIVE_MODEL_SPEC.revision ? { revision: ACTIVE_MODEL_SPEC.revision } : {}),
-        },
-      ));
+      this.pipelinePromise = this.loadWithBackend(requestedDevice());
     }
     return this.pipelinePromise;
+  }
+
+  private async loadWithBackend(requested: SeekDevice): Promise<FeatureExtractor> {
+    const runtime = await loadRuntime();
+    const options = {
+      dtype: ACTIVE_MODEL_SPEC.dtype,
+      ...(ACTIVE_MODEL_SPEC.revision ? { revision: ACTIVE_MODEL_SPEC.revision } : {}),
+    };
+    if (requested === 'wasm') {
+      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
+    }
+    try {
+      return await runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'webgpu' });
+    } catch (error) {
+      if (requested === 'webgpu') {
+        throw new Error(`WebGPU embedding backend failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
+    }
   }
 
   async embed(text: string): Promise<Float32Array> {
@@ -106,19 +104,18 @@ export class SeekQueryEmbedder {
     }
     const extractor = await this.load();
     const output = await extractor(text, {
-      pooling: 'cls',
-      normalize: true,
+      pooling: SEEK_MODEL.pooling,
+      normalize: SEEK_MODEL.normalize,
       padding: true,
       truncation: true,
-      max_length: 128,
+      max_length: SEEK_MODEL.maxLength,
     });
     const outputDim = output.dims[output.dims.length - 1];
     if (outputDim < QUERY_EMBEDDING_DIM) {
       throw new Error(`embed: model output dim ${outputDim} < ${QUERY_EMBEDDING_DIM}`);
     }
-    const vector = sliceAndRenormalize(output.data, QUERY_EMBEDDING_DIM);
+    const vector = prepareVector(output.data, QUERY_EMBEDDING_DIM);
     if (typeof output.dispose === 'function') output.dispose();
-    if (!vector.every(Number.isFinite)) throw new Error('embed: model returned a non-finite vector');
     return vector;
   }
 }

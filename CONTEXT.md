@@ -36,6 +36,11 @@ The first location is Seek's hidden/default sidecar location. The second is
 Seek's visible vault-root option. Indexes are loaded lazily and cached by the
 resolved vault directory, so different vaults use the same tools and process.
 
+The compatibility contract is specified by `src/SEEK-COMPATIBILITY.md` and
+realized by `src/seek-compatibility.ts`. The guide is the orchestration layer
+for future human or AI ports; the TypeScript module is its compact executable
+counterpart. They must be updated together when Seek changes.
+
 ## Export boundary
 
 Seek keeps its working index in IndexedDB and writes a portable sidecar. The
@@ -80,6 +85,11 @@ The 6,735/6,736 mismatch is real and remains a diagnostic/recovery case, not
 evidence of a complete export. A fresh export after fixing the location
 coupling must be validated end to end.
 
+The current loader run against the phone's synchronized agent vault loaded
+6,729 of 6,735 document records, skipped 6 stale mappings, and found 7 orphan
+native vectors. Search remains usable, but this is not a complete consistency
+result.
+
 ## Scope boundaries
 
 The current server supports natural-language query embedding with the pinned
@@ -87,7 +97,10 @@ Seek-compatible model, or a caller-supplied 384-value query vector. Search is a
 full scan and returns chunk-level hits. A read-only CLI now uses the same vault
 loader and index APIs for status, search, chunk, and note checks. Note-level
 grouping, response bounds, automatic reload, and tombstone handling are not
-implemented yet.
+implemented yet. The query backend defaults to WASM; `SEEK_MCP_DEVICE=auto` may
+attempt WebGPU and fall back to WASM, while `SEEK_MCP_DEVICE=webgpu` is strict
+and fails when WebGPU cannot initialize. The phone's actual WebGPU capability
+has not been tested from this development environment.
 
 ## Compatibility philosophy
 

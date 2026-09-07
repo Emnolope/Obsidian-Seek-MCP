@@ -48,14 +48,29 @@ handoff. Complete the critical items in order.
 
 ## Compatibility maintenance
 
-- [ ] `[critical]` Pin and record the Seek source commit used by compatibility
-  code; currently `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`.
+- [x] `[critical]` Pin and record the Seek source commit used by compatibility
+  code: `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`.
 - [ ] `[critical]` Compare sidecar, model, quantization, and IndexedDB changes
   before every Seek update.
 - [ ] `[critical]` Update `UPSTREAM.md`, `NOTICE.md`, fixtures, and format gates
   whenever a compatibility-affecting Seek change is ported.
 - [ ] `[critical]` Run MCP build/tests, Seek typecheck/tests, and fresh hidden
   and visible export validation after format or lifecycle changes.
+
+## Compatibility contract
+
+The English specification and executable compatibility boundary are deliberately
+paired in the same directory:
+
+- `src/SEEK-COMPATIBILITY.md` is the human/AI porting procedure and source of
+  truth for the tensor pathway.
+- `src/seek-compatibility.ts` is the compact implementation of the pinned model,
+  backend policy, and vector post-processing contract.
+
+Update both in the same change. Preserve the largest recognizable Seek block
+first, adapt platform edges second, and trim only after numerical validation.
+The default backend is WASM; `SEEK_MCP_DEVICE=auto` attempts WebGPU with
+fallback, and `SEEK_MCP_DEVICE=webgpu` is strict.
 
 ## Commands
 

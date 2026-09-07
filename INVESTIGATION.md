@@ -1,6 +1,6 @@
 # Seek/MCP Technical Investigation
 
-Last verified: 2026-09-06
+Last verified: 2026-09-07
 
 This file records verified implementation facts. The rationale belongs in
 `CONTEXT.md`; ordered work belongs in `TODO.md`.
@@ -77,11 +77,19 @@ dimensions, offsets, shard paths, and CRCs.
 cosine scan. `src/server.ts` provides the stdio JSON-RPC loop, resolves
 `vaultDir` against hidden then visible locations, and caches indexes by resolved
 vault path. `src/query-embedder.ts` handles natural-language queries using the
-pinned model and the copied Transformers.js web/WASM execution path.
+pinned model and the copied Transformers.js web/WASM execution path. The
+model/vector contract and backend policy are paired in
+`src/SEEK-COMPATIBILITY.md` and `src/seek-compatibility.ts`; WASM is the
+default, `SEEK_MCP_DEVICE=auto` attempts WebGPU with fallback, and
+`SEEK_MCP_DEVICE=webgpu` is strict.
 
 The working tree also contains a read-only CLI that uses the same vault
-resolver, index loader, and query embedder as the MCP server. There is no
-official MCP SDK dependency; transport is a small hand-written stdio loop.
+resolver, index loader, and query embedder as the MCP server. On the phone, the
+CLI successfully loaded the real synchronized export and reported 6,729 loaded
+documents, 6 skipped mappings, and 7 orphan vectors out of 6,735 exported
+documents. A synthetic 384-value vector search completed across the full
+loaded set. There is no official MCP SDK dependency; transport is a small
+hand-written stdio loop.
 
 ## Validation baseline
 
@@ -94,5 +102,8 @@ git diff --check
 ```
 
 The committed tests cover CRC-protected fixture loading, cosine ranking, and
-note path traversal rejection. Hidden/visible resolver behavior and full MCP
-protocol behavior still need tests.
+note path traversal rejection. `npm run build` and `npm test` pass in the
+current working tree. Hidden/visible resolver behavior and full MCP protocol
+behavior still need tests. The actual phone-side Chromium/WebGPU capability
+has not been tested from this development environment, so strict WebGPU mode
+remains an unverified optional backend.
