@@ -31,6 +31,11 @@ Transformers.js web bundle. WASM is the default runtime path. The optional
 `SEEK_MCP_DEVICE=webgpu` requires WebGPU. These modes must preserve the same
 model, tokenizer, dtype, pooling, normalization, and output dimension. Browser
 WebGPU availability on the phone is not assumed by the server.
+Phone-side validation found that Termux Node has no `navigator.gpu`, published
+Dawn has no Android ARM64 binary, and the browser-oriented WASM path reaches a
+Node-incompatible `blob:` module URL. A future Chromium sidecar may own only
+query embedding and return a 384-value vector across a narrow local boundary;
+the Node process should retain vault loading, ranking, and MCP transport.
 The default result limit is 10 and the allowed range is 1 through 100.
 
 ## Location resolution

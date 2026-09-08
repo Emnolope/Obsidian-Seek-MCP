@@ -104,6 +104,11 @@ git diff --check
 The committed tests cover CRC-protected fixture loading, cosine ranking, and
 note path traversal rejection. `npm run build` and `npm test` pass in the
 current working tree. Hidden/visible resolver behavior and full MCP protocol
-behavior still need tests. The actual phone-side Chromium/WebGPU capability
-has not been tested from this development environment, so strict WebGPU mode
-remains an unverified optional backend.
+behavior still need tests. Phone-side `test-1` through `test-4` were run in
+Termux on Android arm64: Node has no `navigator.gpu`; published Dawn has no
+Android ARM64 binary; official `onnxruntime-node` rejects Android; and the
+pinned web runtime's declared `onnxruntime-common@1.24.0-dev.20251116-b39e144322`
+installs, but the real embedder fails on Node with
+`ERR_UNSUPPORTED_ESM_URL_SCHEME` for a `blob:` module URL. No vector or
+throughput result was produced. Strict WebGPU remains unverified, and the
+evidence favors a Chromium sidecar over a custom Android native build.

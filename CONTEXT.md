@@ -100,7 +100,19 @@ grouping, response bounds, automatic reload, and tombstone handling are not
 implemented yet. The query backend defaults to WASM; `SEEK_MCP_DEVICE=auto` may
 attempt WebGPU and fall back to WASM, while `SEEK_MCP_DEVICE=webgpu` is strict
 and fails when WebGPU cannot initialize. The phone's actual WebGPU capability
-has not been tested from this development environment.
+has now been tested from Termux. The phone is Android arm64 with Node 26,
+seven reported CPUs, SharedArrayBuffer, and Atomics, but Node exposes neither
+`navigator.gpu` nor a global `GPU`. The published `webgpu` package installs but
+fails because it has no `android-arm64/dawn.node` binary. The official
+`onnxruntime-node` package rejects Android at install time.
+
+The phone-side tests also corrected the declared `onnxruntime-common` version
+and installed it successfully. The real Seek-compatible web/WASM embedder still
+failed because the browser-oriented runtime produced a `blob:` module URL that
+Node's ESM loader does not support. No phone embedding or throughput result was
+produced. A Chromium sidecar is the cleanest next runtime boundary because it
+supplies the browser environment expected by the copied web stack; a custom
+Android native build is possible but is not yet justified by evidence.
 
 ## Compatibility philosophy
 

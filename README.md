@@ -1,4 +1,16 @@
 # Obsidian-Seek-MCP
+
+If you are a human or AI agent, read the following docs in order to understand this project.
+
+CONTEXT.md
+README.md
+TODO.md
+MCP_BLUEPRINT.md
+INVESTIGATION.md
+UPSTREAM.md
+NOTICE.md
+src/SEEK-COMPATIBILITY.md
+
 # Obsidian Seek MCP
 
 This repository contains the read-only MCP consumer for a complete export from
@@ -73,6 +85,13 @@ second time.
 The server is intentionally read-only. It does not edit notes, run Git, or
 modify Seek's index.
 
+## Device tests
+
+Phone-specific diagnostics live under `device-tests/<device>/`. The current
+suite is `device-tests/oneplus-6t/`; run it from the repository root on the
+matching Termux device. Generated logs belong under `device-tests/results/`
+and are intentionally not committed.
+
 ## CLI
 
 The same loader and search implementation is available for direct human or
@@ -112,6 +131,13 @@ adapter selects the same WASM execution path and plain glue variant that Seek
 uses on Android; it does not install or import `onnxruntime-node`. The optional
 `auto` and strict `webgpu` modes are a runtime experiment, not proof that a
 Termux or server environment can reproduce the plugin's browser WebGPU path.
+Phone validation in Termux found no Node `navigator.gpu`, no published Android
+ARM64 Dawn binary, and no Android-compatible `onnxruntime-node` package. After
+installing the web runtime's declared common dependency, the browser-oriented
+WASM loader still reached a Node-incompatible `blob:` module URL. The next
+runtime experiment is therefore a Chromium sidecar that preserves Seek's
+iframe-compatible browser environment; this does not change the model/vector
+compatibility contract.
 
 The real synchronized `system-vault` export is separate from this repository.
 Its current export contains 6,735 document records and 6,736 native locator

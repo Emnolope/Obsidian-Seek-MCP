@@ -19,6 +19,9 @@ handoff. Complete the critical items in order.
   malformed JSON, unknown tools, and invalid arguments.
 - [ ] `[critical]` Bound search and fetch response sizes before relying on the
   server for large notes and PicoClaw context.
+- [ ] `[critical]` Build the smallest Chromium sidecar boundary for phone query
+  embedding, preserving the copied Seek browser runtime and returning only the
+  384-value query vector to the Node MCP process.
 
 ## Current implementation already complete
 
@@ -45,6 +48,17 @@ handoff. Complete the critical items in order.
 - [ ] `[optional]` Add sign-bit candidate generation and reranking.
 - [ ] `[optional]` Reload a vault when its export generation changes.
 - [x] Add a CLI that calls the same `SeekIndex` library as MCP.
+
+## Phone runtime findings
+
+- [x] Confirm Android/Termux Node lacks `navigator.gpu`.
+- [x] Confirm published Dawn Node WebGPU lacks an Android ARM64 binary.
+- [x] Confirm official `onnxruntime-node` rejects Android.
+- [x] Install the pinned web runtime's declared `onnxruntime-common` version.
+- [x] Confirm the browser-oriented WASM path fails on Node at `blob:` module
+  loading before producing an embedding.
+- [ ] Choose Chromium sidecar IPC or a custom Android native build; current
+  evidence favors the Chromium sidecar.
 
 ## Compatibility maintenance
 
