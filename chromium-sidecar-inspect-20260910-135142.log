@@ -1,0 +1,6 @@
+=== test-6: inspect raw Chromium Seek RPC result ===
+timestamp: 2026-09-10T13:51:42+00:00
+repo: /workspaces/Obsidian-Seek-MCP
+output: /workspaces/Obsidian-Seek-MCP/chromium-sidecar-inspect-20260910-135142.log
+
+No Chromium executable found.
