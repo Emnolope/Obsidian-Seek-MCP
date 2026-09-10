@@ -14,6 +14,12 @@ silently editing the human source of truth or inventing a second embedding
 space. Compatibility, read-only behavior, and explicit unfinished work matter
 more here than making the repository look complete.
 
+Short version: the AI may prepare a Chromium/WebGPU probe, but the phone owns
+the actual execution and permission boundary. A remote VM or data-center process
+is not a phone and cannot claim device validation. The user runs the probe on
+the target device, records the result, and sends that evidence back through the
+repository so identity, security, and trust remain coherent.
+
 ## Goal
 
 Give PicoClaw read-only semantic retrieval over one or more Obsidian vaults by

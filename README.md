@@ -90,6 +90,11 @@ repository root unless `SEEK_PROBE_OUT` is set; keep new logs out of commits.
 `test-6.sh` is the current diagnostic because it serializes a flat report in
 the browser before crossing CDP, avoiding the earlier empty-object result.
 
+Short version: the AI can generate the probe, but the phone owns the execution
+and permission boundary. A server-side VM is not a phone and cannot claim a
+WebGPU or Chromium result on the user's device. The proof must come from the
+actual device, then be reported back through the repo.
+
 ## CLI
 
 The same loader and search implementation is available for direct human or
