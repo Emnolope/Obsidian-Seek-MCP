@@ -45,13 +45,17 @@ export function summarizeRuntimeValue(value: unknown): {
 class CdpConnection {
   private nextId = 1;
   private pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void }>();
+  private events: unknown[] = [];
   private socket: WebSocket;
 
   constructor(url: string) {
     this.socket = new WebSocket(url);
     this.socket.addEventListener('message', (event) => {
       const message = JSON.parse(String(event.data)) as CdpResponse;
-      if (!message.id) return;
+      if (!message.id) {
+        this.events.push(message);
+        return;
+      }
       const request = this.pending.get(message.id);
       if (!request) return;
       this.pending.delete(message.id);
@@ -81,6 +85,12 @@ class CdpConnection {
   }
 
   close(): void { this.socket.close(); }
+
+  drainEvents(): unknown[] {
+    const events = this.events;
+    this.events = [];
+    return events;
+  }
 }
 
 const BROWSER_HTML = (childScript: string) => `<!doctype html><meta charset="utf-8"><script>
@@ -348,6 +358,10 @@ export class ChromiumSidecar {
         });
       }).catch((error) => JSON.stringify({ ok: false, error: String(error), stack: error && error.stack ? error.stack : null, state }));
     })()`);
+  }
+
+  drainCdpEvents(): unknown[] {
+    return this.cdp?.drainEvents() ?? [];
   }
 
   async close(): Promise<void> {
