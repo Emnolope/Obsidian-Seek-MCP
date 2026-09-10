@@ -109,10 +109,12 @@ fails because it has no `android-arm64/dawn.node` binary. The official
 The phone-side tests also corrected the declared `onnxruntime-common` version
 and installed it successfully. The real Seek-compatible web/WASM embedder still
 failed because the browser-oriented runtime produced a `blob:` module URL that
-Node's ESM loader does not support. No phone embedding or throughput result was
-produced. A Chromium sidecar is the cleanest next runtime boundary because it
-supplies the browser environment expected by the copied web stack; a custom
-Android native build is possible but is not yet justified by evidence.
+Node's ESM loader does not support. The experimental Chromium sidecar now
+supplies the browser environment expected by the copied web stack, and its
+launch and browser embedding path were reached on the OnePlus 6T. The final
+384-value CDP payload was not available for this handoff, so valid phone
+embedding and throughput remain unverified. A custom Android native build is
+not yet justified by evidence.
 
 ## Compatibility philosophy
 

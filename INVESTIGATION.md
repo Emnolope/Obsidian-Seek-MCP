@@ -1,6 +1,6 @@
 # Seek/MCP Technical Investigation
 
-Last verified: 2026-09-07
+Last verified: 2026-09-10
 
 This file records verified implementation facts. The rationale belongs in
 `CONTEXT.md`; ordered work belongs in `TODO.md`.
@@ -8,7 +8,8 @@ This file records verified implementation facts. The rationale belongs in
 ## Repository versions
 
 - MCP repository: `/workspaces/Obsidian-Seek-MCP`
-- MCP commit/release: `4b53ec3` / `Obsidian-Vault-MCP-v4`
+- MCP commit/release: `00f5208` on branch `chromium-sidecar` /
+  `Obsidian-Vault-MCP-v4` remains the published baseline
 - Seek checkout: `/workspaces/Obsidian-Seek`
 - Seek plugin commit: `06b837126f66d54db97ef8785a7c95750e48c311`
 - Compatibility source commit: `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`
@@ -84,12 +85,12 @@ default, `SEEK_MCP_DEVICE=auto` attempts WebGPU with fallback, and
 `SEEK_MCP_DEVICE=webgpu` is strict.
 
 The working tree also contains a read-only CLI that uses the same vault
-resolver, index loader, and query embedder as the MCP server. On the phone, the
-CLI successfully loaded the real synchronized export and reported 6,729 loaded
-documents, 6 skipped mappings, and 7 orphan vectors out of 6,735 exported
-documents. A synthetic 384-value vector search completed across the full
-loaded set. There is no official MCP SDK dependency; transport is a small
-hand-written stdio loop.
+resolver, index loader, and query embedder as the MCP server. An older phone
+run loaded 6,729 documents, skipped 6 mappings, and found 7 orphan vectors out
+of 6,735 exported documents. Treat those counts as historical until the loader
+is rerun against the current files. A synthetic 384-value vector search
+completed across that earlier loaded set. There is no official MCP SDK
+dependency; transport is a small hand-written stdio loop.
 
 ## Validation baseline
 
@@ -102,13 +103,18 @@ git diff --check
 ```
 
 The committed tests cover CRC-protected fixture loading, cosine ranking, and
-note path traversal rejection. `npm run build` and `npm test` pass in the
-current working tree. Hidden/visible resolver behavior and full MCP protocol
-behavior still need tests. Phone-side `test-1` through `test-4` were run in
+note path traversal rejection. Hidden/visible resolver behavior and full MCP
+protocol behavior still need tests. Phone-side `test-1` through `test-4` were run in
 Termux on Android arm64: Node has no `navigator.gpu`; published Dawn has no
 Android ARM64 binary; official `onnxruntime-node` rejects Android; and the
 pinned web runtime's declared `onnxruntime-common@1.24.0-dev.20251116-b39e144322`
 installs, but the real embedder fails on Node with
 `ERR_UNSUPPORTED_ESM_URL_SCHEME` for a `blob:` module URL. No vector or
-throughput result was produced. Strict WebGPU remains unverified, and the
-evidence favors a Chromium sidecar over a custom Android native build.
+throughput result was produced by those tests. Phone-side `test-5.sh` later
+confirmed Chromium `149.0.7827.155` launches at
+`/data/data/com.termux/files/usr/bin/chromium-browser` and reaches the browser
+embedding path, but the CDP return payload was malformed. `test-6.sh` was added
+to inspect that payload; this session does not have its final device output.
+Strict WebGPU and a valid 384-value return therefore remain unverified. The
+next agent should inspect `test-6.sh` output before making another transport
+change.
