@@ -35,7 +35,8 @@ SEEK_CHROMIUM_PATH="$CHROMIUM" SEEK_MCP_DEVICE=webgpu node --experimental-strip-
 const { ChromiumSidecar } = await import("./src/chromium-sidecar.ts");
 const sidecar = new ChromiumSidecar();
 try {
-  console.log(JSON.stringify(await sidecar.inspectEmbed("OnePlus 6T raw RPC inspection"), null, 2));
+  const report = await sidecar.inspectEmbed("OnePlus 6T raw RPC inspection");
+  console.log(report);
 } catch (error) {
   console.log(JSON.stringify({ ok: false, error: String(error), stack: error instanceof Error ? error.stack : null }, null, 2));
   process.exitCode = 1;

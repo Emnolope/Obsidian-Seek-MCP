@@ -176,7 +176,7 @@ export class ChromiumSidecar {
       try { await this.start(); }
       catch (error) { await this.close(); throw error; }
     }
-    return this.evaluate(`window.__seekEmbed(${JSON.stringify(text)}).then(value => {
+    return this.evaluate<string>(`window.__seekEmbed(${JSON.stringify(text)}).then(value => JSON.stringify((() => {
       const vector = value && value.vector;
       let sample = null;
       try { sample = Array.from(vector ?? []).slice(0, 8); } catch (error) { sample = { error: String(error) }; }
@@ -191,7 +191,7 @@ export class ChromiumSidecar {
         vectorSample: sample,
         latencyMs: value?.latencyMs ?? null,
       };
-    })`);
+    })()))`);
   }
 
   async close(): Promise<void> {
