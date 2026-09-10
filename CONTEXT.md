@@ -1,5 +1,19 @@
 # Obsidian Seek MCP Context
 
+## Why this exists
+
+This project gives an agent useful access to a human-maintained Obsidian vault
+without turning the agent into another author of that vault. Seek remains the
+human-side indexing and embedding authority; this repository is the read-side
+bridge that makes the already-created knowledge searchable by PicoClaw.
+
+The separation is intentional. A human's notes and the agent's retrieval
+process have different responsibilities and different failure modes. The agent
+copy should be safe to inspect, synchronize, rebuild, and debug without
+silently editing the human source of truth or inventing a second embedding
+space. Compatibility, read-only behavior, and explicit unfinished work matter
+more here than making the repository look complete.
+
 ## Goal
 
 Give PicoClaw read-only semantic retrieval over one or more Obsidian vaults by
@@ -34,13 +48,6 @@ locations in order:
 
 The first location is Seek's hidden/default sidecar location. The second is
 Seek's visible vault-root option. Indexes are loaded lazily and cached by the
-resolved vault directory, so different vaults use the same tools and process.
-
-The compatibility contract is specified by `src/SEEK-COMPATIBILITY.md` and
-realized by `src/seek-compatibility.ts`. The guide is the orchestration layer
-for future human or AI ports; the TypeScript module is its compact executable
-counterpart. They must be updated together when Seek changes.
-
 ## Export boundary
 
 Seek keeps its working index in IndexedDB and writes a portable sidecar. The
@@ -76,7 +83,6 @@ The available real system-vault data currently shows:
 - visible native locator records: 6,736
 - visible MCP document records: 6,735
 - hidden native locator records: 6
-- model: `tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX`
 - revision: `54db88c5667bd79b4aea24ea6027a7ef45a7bbb5`
 - dimension: `384`
 - sidecar format: `3`
@@ -115,27 +121,3 @@ launch and browser embedding path were reached on the OnePlus 6T. The final
 384-value CDP payload was not available for this handoff, so valid phone
 embedding and throughput remain unverified. A custom Android native build is
 not yet justified by evidence.
-
-## Compatibility philosophy
-
-Seek-derived code and MCP code have different ownership even though they are
-fully integrated at runtime. Keep copied Seek blocks and snapshots visibly
-separate, preserve their upstream layout, naming, ordering, comments, and
-control flow, and mark every necessary adaptation at a narrow boundary. The
-priority is the smallest edit distance from Seek, not the smallest amount of
-copied code. Copying extra upstream functions is good when it keeps the port
-mechanically comparable. Do not refactor copied code into local style or mix
-unrelated MCP behavior into it.
-
-This minimizes the diff footprint. Updating compatibility code should be a
-mechanical comparison task: identify the copied block, inspect that block in
-the newer Seek source, and replace the local block with the updated version.
-The source path and pinned commit must make that comparison possible without
-requiring a maintainer to reverse-engineer or redesign the algorithm first.
-
-The implementation preference is intentionally broad: copy the largest
-relevant Seek file or block that can be integrated, then adapt its imports and
-platform edges. Do not extract only the few lines that seem necessary and
-rebuild the surrounding behavior from memory. A larger wholesale copy is
-better when it keeps the plugin's behavior and update path obvious; MCP code
-belongs around that copy as a wrapper or at clearly marked boundaries.

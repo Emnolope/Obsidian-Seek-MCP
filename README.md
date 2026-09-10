@@ -1,16 +1,8 @@
 # Obsidian-Seek-MCP
 
-If you are a human or AI agent, read the following docs in order to understand this project.
-
-CONTEXT.md
-README.md
-HANDOFF.md
-TODO.md
-MCP_BLUEPRINT.md
-INVESTIGATION.md
-UPSTREAM.md
-NOTICE.md
-src/SEEK-COMPATIBILITY.md
+Human-facing usage is documented below. Agent-to-agent maintenance guidance,
+project context, and the current unfinished handoff live in
+[`HANDOFF.md`](HANDOFF.md) and [`CONTEXT.md`](CONTEXT.md).
 
 # Obsidian Seek MCP
 
@@ -22,12 +14,6 @@ MCP index**.
 The current published MCP release is `Obsidian-Vault-MCP-v4`. The working tree
 also includes a read-only CLI for direct status, search, chunk, and note checks;
 the CLI is not part of that published release yet.
-
-The Chromium sidecar work is on the `chromium-sidecar` branch. It is an
-experimental handoff, not a validated release: Chromium was observed launching
-on the OnePlus 6T, but this session did not receive the final `test-6.sh`
-payload needed to prove that a 384-value vector survives the CDP boundary.
-Continue from [`HANDOFF.md`](HANDOFF.md) before changing transport code.
 
 ## Run
 
@@ -162,24 +148,3 @@ export destination follow the selected hidden or visible sidecar location while
 retaining the successful-commit boundary. Keep that integration explicit and
 diff-friendly; do not alter Seek's embedding calculations. After that, add
 resolver and MCP protocol tests, then bound search and fetch responses.
-
-## Compatibility editing rule
-
-Seek-derived code is kept as visibly separate, mechanically replaceable
-compatibility code. The priority is the smallest edit distance from Seek, not
-the smallest port: copying extra upstream functions is good when it preserves
-the original structure, names, ordering, comments, and control flow. A future
-update should be handled by finding the corresponding Seek block, comparing it
-with the new version, and copying the updated block with a small diff. Put
-MCP-specific behavior in adjacent adapters or clearly marked boundary
-sections instead of blending it into copied code. This keeps the code fully
-integrated at runtime while making the port easy to update without first
-understanding or redesigning the upstream algorithm.
-
-When adding or repairing compatibility behavior, copy the largest relevant
-Seek file or code block first. A broad wholesale transplant is preferred to a
-small bespoke rewrite; unused copied helpers are acceptable when they preserve
-the plugin's control flow and make later updates mechanical. Then put the MCP
-runtime differences in a wrapper or a clearly marked edge section. The copied
-Seek code should be the obvious center of the implementation, with MCP code
-providing the surrounding integration.
