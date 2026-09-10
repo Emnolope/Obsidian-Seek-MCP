@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { SeekIndex } from '../src/index.ts';
+import { summarizeRuntimeValue } from '../src/chromium-sidecar.ts';
 import { encodeRecord, SIGN_BYTES, VEC_BYTES } from '../src/sidecar.ts';
 
 async function fixture() {
@@ -35,6 +36,28 @@ test('loads and ranks vectors by cosine similarity', async () => {
   const queryVector = [0.9, 0.1, ...new Array(382).fill(0)];
   assert.equal(index.search(queryVector, 1)[0].chunkId, 'a');
   assert.equal(index.status().loadedChunks, 2);
+});
+
+test('summarizes browser runtime values and exception details', () => {
+  const summary = summarizeRuntimeValue({
+    vector: Float32Array.from([1, 2, 3]),
+    latencyMs: 12,
+    extra: { ok: true },
+  });
+
+  assert.equal(summary.resultType, 'object');
+  assert.deepEqual(summary.resultKeys, ['vector', 'latencyMs', 'extra']);
+  assert.equal(summary.vectorType, 'object');
+  assert.equal(summary.vectorConstructor, 'Float32Array');
+  assert.equal(summary.vectorLength, 3);
+  assert.deepEqual(summary.vectorSample, [1, 2, 3]);
+
+  const exceptionSummary = summarizeRuntimeValue({
+    error: 'Boom',
+    exceptionDetails: { text: 'bad' },
+  });
+  assert.equal(exceptionSummary.errorText, 'Boom');
+  assert.equal(exceptionSummary.exceptionText, 'bad');
 });
 
 test('rejects path traversal in note fetches', async () => {

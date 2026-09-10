@@ -5,6 +5,43 @@ import { buildChildScript } from '../vendor/seek/src/iframe-runner.ts';
 
 type CdpResponse = { id: number; result?: any; error?: { message?: string } };
 
+export function summarizeRuntimeValue(value: unknown): {
+  resultType: string;
+  resultConstructor: string | null;
+  resultKeys: string[];
+  vectorType: string;
+  vectorConstructor: string | null;
+  vectorLength: number | null;
+  vectorKeys: string[];
+  vectorSample: unknown;
+  latencyMs: number | null;
+  errorText: string | null;
+  exceptionText: string | null;
+} {
+  const result = value && typeof value === 'object' ? value as Record<string, unknown> : null;
+  const vector = result && typeof result === 'object' ? (result as { vector?: unknown }).vector : undefined;
+  let sample: unknown = null;
+  try {
+    sample = Array.isArray(vector) ? vector.slice(0, 8) : (vector && typeof vector === 'object' && 'length' in (vector as object) ? Array.from(vector as ArrayLike<unknown>).slice(0, 8) : null);
+  } catch {
+    sample = { error: 'vector sample extraction failed' };
+  }
+
+  return {
+    resultType: typeof value,
+    resultConstructor: value && typeof value === 'object' && value !== null ? (value as { constructor?: { name?: string } }).constructor?.name ?? null : null,
+    resultKeys: result ? Object.keys(result) : [],
+    vectorType: typeof vector,
+    vectorConstructor: vector && typeof vector === 'object' ? (vector as { constructor?: { name?: string } }).constructor?.name ?? null : null,
+    vectorLength: Array.isArray(vector) ? vector.length : (vector && typeof vector === 'object' && 'length' in (vector as object) ? Number((vector as { length?: number }).length ?? null) : null),
+    vectorKeys: vector && typeof vector === 'object' ? Object.keys(vector).slice(0, 12) : [],
+    vectorSample: sample,
+    latencyMs: typeof result?.latencyMs === 'number' ? result.latencyMs : null,
+    errorText: typeof result?.error === 'string' ? result.error : null,
+    exceptionText: typeof result?.exceptionDetails === 'object' && result.exceptionDetails && 'text' in result.exceptionDetails ? String((result.exceptionDetails as { text?: unknown }).text ?? '') || null : null,
+  };
+}
+
 class CdpConnection {
   private nextId = 1;
   private pending = new Map<number, { resolve: (value: any) => void; reject: (error: Error) => void }>();
@@ -176,22 +213,33 @@ export class ChromiumSidecar {
       try { await this.start(); }
       catch (error) { await this.close(); throw error; }
     }
-    return this.evaluate<string>(`window.__seekEmbed(${JSON.stringify(text)}).then(value => JSON.stringify((() => {
-      const vector = value && value.vector;
-      let sample = null;
-      try { sample = Array.from(vector ?? []).slice(0, 8); } catch (error) { sample = { error: String(error) }; }
-      return {
-        resultType: typeof value,
-        resultConstructor: value?.constructor?.name ?? null,
-        resultKeys: value && typeof value === 'object' ? Object.keys(value) : [],
-        vectorType: typeof vector,
-        vectorConstructor: vector?.constructor?.name ?? null,
-        vectorLength: vector?.length ?? null,
-        vectorKeys: vector && typeof vector === 'object' ? Object.keys(vector).slice(0, 12) : [],
-        vectorSample: sample,
-        latencyMs: value?.latencyMs ?? null,
-      };
-    })()))`);
+    return this.evaluate<string>(`window.__seekEmbed(${JSON.stringify(text)}).then(value => {
+      const result = value && typeof value === 'object' ? value : { raw: value };
+      const vector = result && typeof result === 'object' ? result.vector : undefined;
+      const summary = (() => {
+        let sample = null;
+        try {
+          sample = Array.isArray(vector) ? vector.slice(0, 8) : (vector && typeof vector === 'object' && 'length' in vector ? Array.from(vector).slice(0, 8) : null);
+        } catch (error) {
+          sample = { error: String(error) };
+        }
+        return {
+          resultType: typeof value,
+          resultConstructor: value && typeof value === 'object' ? value.constructor?.name ?? null : null,
+          resultKeys: result && typeof result === 'object' ? Object.keys(result) : [],
+          vectorType: typeof vector,
+          vectorConstructor: vector && typeof vector === 'object' ? vector.constructor?.name ?? null : null,
+          vectorLength: vector && typeof vector === 'object' && 'length' in vector ? vector.length : null,
+          vectorKeys: vector && typeof vector === 'object' ? Object.keys(vector).slice(0, 12) : [],
+          vectorSample: sample,
+          latencyMs: result && typeof result === 'object' ? result.latencyMs ?? null : null,
+          errorText: result && typeof result === 'object' && typeof result.error === 'string' ? result.error : null,
+          exceptionText: result && typeof result === 'object' && result.exceptionDetails && typeof result.exceptionDetails === 'object' && 'text' in result.exceptionDetails ? String(result.exceptionDetails.text ?? '') || null : null,
+          pageGlobalKeys: Object.keys(window).slice(0, 30),
+        };
+      })();
+      return JSON.stringify(summary);
+    })()`);
   }
 
   async close(): Promise<void> {
