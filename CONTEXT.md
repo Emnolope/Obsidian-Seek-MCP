@@ -48,6 +48,11 @@ locations in order:
 
 The first location is Seek's hidden/default sidecar location. The second is
 Seek's visible vault-root option. Indexes are loaded lazily and cached by the
+resolved vault directory, so different vaults use the same tools and process.
+The compatibility contract is specified by `src/SEEK-COMPATIBILITY.md` and
+realized by `src/seek-compatibility.ts`; both should be updated together when
+Seek changes.
+
 ## Export boundary
 
 Seek keeps its working index in IndexedDB and writes a portable sidecar. The
@@ -74,15 +79,15 @@ configured sidecar location used for native files.
 
 ## Verified baseline
 
-The current MCP repository is commit `4b53ec3`, published as
-`Obsidian-Vault-MCP-v4`. The plugin checkout is commit
-`06b837126f66d54db97ef8785a7c95750e48c311`.
+The current MCP repository is published as `Obsidian-Vault-MCP-v4`. The plugin
+checkout is commit `06b837126f66d54db97ef8785a7c95750e48c311`.
 
 The available real system-vault data currently shows:
 
 - visible native locator records: 6,736
 - visible MCP document records: 6,735
 - hidden native locator records: 6
+- model ID: `tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX`
 - revision: `54db88c5667bd79b4aea24ea6027a7ef45a7bbb5`
 - dimension: `384`
 - sidecar format: `3`

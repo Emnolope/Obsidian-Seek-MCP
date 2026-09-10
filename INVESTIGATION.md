@@ -8,7 +8,7 @@ This file records verified implementation facts. The rationale belongs in
 ## Repository versions
 
 - MCP repository: `/workspaces/Obsidian-Seek-MCP`
-- MCP commit/release: `00f5208` on branch `chromium-sidecar` /
+- MCP commit/release: `63d4cc5` on `main` /
   `Obsidian-Vault-MCP-v4` remains the published baseline
 - Seek checkout: `/workspaces/Obsidian-Seek`
 - Seek plugin commit: `06b837126f66d54db97ef8785a7c95750e48c311`

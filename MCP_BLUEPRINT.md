@@ -36,8 +36,8 @@ Dawn has no Android ARM64 binary, and the browser-oriented WASM path reaches a
 Node-incompatible `blob:` module URL. The experimental Chromium sidecar owns
 only query embedding and returns a 384-value vector across a narrow local
 boundary; the Node process retains vault loading, ranking, and MCP transport.
-The sidecar exists on the `chromium-sidecar` branch, and its
-browser launch path was observed on the OnePlus 6T. The final CDP payload still
+The sidecar is merged into `main`, and its browser launch path was observed on
+the OnePlus 6T. The final CDP payload still
 needs hardware evidence from `test-6.sh` before this boundary is treated as
 working.
 The default result limit is 10 and the allowed range is 1 through 100.

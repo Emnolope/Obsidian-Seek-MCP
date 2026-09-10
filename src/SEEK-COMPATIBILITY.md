@@ -84,8 +84,8 @@ discriminating capability check.
 
 The plugin's browser path adds iframe isolation, WebGPU adapter probing, shader
 warmup, device-loss recovery, and mobile memory policy. Those are runtime
-adaptations, not part of the vector contract. A future browser sidecar may
-reuse the copied Seek child runtime, but it must remain optional. Phone-side
+adaptations, not part of the vector contract. The experimental Chromium
+sidecar reuses the copied Seek child runtime, but remains optional. Phone-side
 Termux tests found no Node `navigator.gpu`, no published Android Dawn binary,
 and a Node-incompatible `blob:` module URL in the browser-oriented WASM path.
 Those findings justify a sidecar boundary for execution, but do not alter the

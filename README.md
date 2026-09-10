@@ -4,8 +4,6 @@ Human-facing usage is documented below. Agent-to-agent maintenance guidance,
 project context, and the current unfinished handoff live in
 [`HANDOFF.md`](HANDOFF.md) and [`CONTEXT.md`](CONTEXT.md).
 
-# Obsidian Seek MCP
-
 This repository contains the read-only MCP consumer for a complete export from
 the Seek Obsidian plugin. The companion exporter is in the Seek source checkout
 at `/workspaces/Obsidian-Seek`; Obsidian exposes it as **Seek: Export complete
