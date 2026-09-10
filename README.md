@@ -4,6 +4,7 @@ If you are a human or AI agent, read the following docs in order to understand t
 
 CONTEXT.md
 README.md
+HANDOFF.md
 TODO.md
 MCP_BLUEPRINT.md
 INVESTIGATION.md
@@ -21,6 +22,12 @@ MCP index**.
 The current published MCP release is `Obsidian-Vault-MCP-v4`. The working tree
 also includes a read-only CLI for direct status, search, chunk, and note checks;
 the CLI is not part of that published release yet.
+
+The Chromium sidecar work is on the `chromium-sidecar` branch. It is an
+experimental handoff, not a validated release: Chromium was observed launching
+on the OnePlus 6T, but this session did not receive the final `test-6.sh`
+payload needed to prove that a 384-value vector survives the CDP boundary.
+Continue from [`HANDOFF.md`](HANDOFF.md) before changing transport code.
 
 ## Run
 
@@ -52,7 +59,9 @@ backend is WASM. Set `SEEK_MCP_DEVICE=auto` to attempt WebGPU and fall back to
 WASM, or `SEEK_MCP_DEVICE=webgpu` to require the Chromium sidecar and fail
 instead of silently falling back. The sidecar launches the Chromium binary
 named by `SEEK_CHROMIUM_PATH`, serves the existing Seek browser child script,
-and returns only the 384-value query vector over the DevTools Protocol.
+and is intended to return only the 384-value query vector over the DevTools
+Protocol. The sidecar reaches the browser path on the target phone, but its
+final return payload is not yet hardware-validated.
 Chromium owns Transformers.js, ORT-Web, model loading, and WebGPU; Node owns
 MCP transport, vault loading, and ranking. Backend choice changes execution
 environment and speed, not the model/vector-space contract.
@@ -92,8 +101,10 @@ modify Seek's index.
 
 Phone-specific diagnostics live under `device-tests/<device>/`. The current
 suite is `device-tests/oneplus-6t/`; run it from the repository root on the
-matching Termux device. Generated logs belong under `device-tests/results/`
-and are intentionally not committed.
+matching Termux device. The scripts currently default generated logs to the
+repository root unless `SEEK_PROBE_OUT` is set; keep new logs out of commits.
+`test-6.sh` is the current diagnostic because it serializes a flat report in
+the browser before crossing CDP, avoiding the earlier empty-object result.
 
 ## CLI
 

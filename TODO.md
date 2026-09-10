@@ -20,9 +20,16 @@ handoff. Complete the critical items in order.
 - [ ] `[critical]` Bound search and fetch response sizes before relying on the
   server for large notes and PicoClaw context.
 - [x] `[critical]` Build the smallest Chromium sidecar boundary for query
-  embedding, preserving the copied Seek browser runtime and returning only the
-  384-value query vector to the Node MCP process. Hardware validation remains
-  pending on a machine with Chromium and usable WebGPU.
+  embedding, preserving the copied Seek browser runtime and defining a
+  browser-to-Node vector boundary. Hardware validation of the returned payload
+  remains pending on the OnePlus 6T.
+- [ ] `[critical]` Run `device-tests/oneplus-6t/test-6.sh` on the target phone
+  and inspect its flat report. Confirm the browser result has a vector
+  constructor, length 384, finite sample values, and a usable latency before
+  changing CDP transport code.
+- [ ] `[critical]` After the raw report is available, make the smallest
+  transport fix required by the observed result and rerun `test-5.sh` for a
+  real 384-value embedding.
 
 ## Current implementation already complete
 
@@ -58,8 +65,13 @@ handoff. Complete the critical items in order.
 - [x] Install the pinned web runtime's declared `onnxruntime-common` version.
 - [x] Confirm the browser-oriented WASM path fails on Node at `blob:` module
   loading before producing an embedding.
-- [ ] Choose Chromium sidecar IPC or a custom Android native build; current
-  evidence favors the Chromium sidecar.
+- [x] Choose Chromium sidecar IPC over a custom Android native build for the
+  experimental browser boundary; final payload validation remains pending.
+
+The Chromium sidecar choice has now been implemented experimentally. The
+remaining question is whether its CDP return boundary is correct on the target
+device; do not reopen the native-build question until the sidecar evidence is
+available.
 
 ## Compatibility maintenance
 

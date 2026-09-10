@@ -1,3 +1,4 @@
 node_modules/
+/*.log
 device-tests/results/
 device-tests/oneplus-6t/*.log
