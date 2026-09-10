@@ -114,8 +114,14 @@ window.addEventListener('message', (event) => {
     return;
   }
   window.__seekPending.delete(data.id);
-  if (data.ok) pending.resolve(data.result);
-  else pending.reject(new Error(data.error || 'Seek browser RPC failed'));
+  if (data.ok) {
+    console.log('[seek-debug] rpc resolved', { id: data.id, resultType: typeof data.result, keys: data.result && typeof data.result === 'object' ? Object.keys(data.result) : [] });
+    pending.resolve(data.result);
+  } else {
+    const detail = data.error || data.stack || 'Seek browser RPC failed';
+    console.error('[seek-debug] rpc rejected', { id: data.id, error: data.error, stack: data.stack, raw: data });
+    pending.reject(new Error(detail));
+  }
 });
 window.__seekRpc = (type, payload) => new Promise((resolve, reject) => {
   const id = 'mcp-' + crypto.randomUUID();
