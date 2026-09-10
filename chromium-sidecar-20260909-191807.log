@@ -1,0 +1,75 @@
+=== test-5: Chromium Seek WebGPU sidecar ===
+timestamp: 2026-09-09T19:18:07-05:00
+repo: /data/data/com.termux/files/home/Obsidian-Seek-MCP
+output: /data/data/com.termux/files/home/Obsidian-Seek-MCP/chromium-sidecar-20260909-191807.log
+
+--- phone and runtime ---
+
++ uname -a
+Linux localhost 4.9.227-perf+ #1 SMP PREEMPT Fri Nov 26 00:10:21 CST 2021 aarch64 Android
+exit: 0
+
++ getprop ro.product.cpu.abi
+arm64-v8a
+exit: 0
+
++ getprop ro.hardware
+qcom
+exit: 0
+
++ getprop ro.soc.model
+
+exit: 0
+
++ node --version
+v26.4.0
+exit: 0
+
++ npm --version
+11.19.1
+exit: 0
+
++ nproc
+8
+exit: 0
+
++ node --experimental-strip-types --input-type=module -e 
+console.log(JSON.stringify({
+  node: process.version,
+  platform: process.platform,
+  arch: process.arch,
+  navigatorGpu: typeof navigator?.gpu,
+  gpuGlobal: typeof GPU,
+  sharedArrayBuffer: typeof SharedArrayBuffer,
+  atomics: typeof Atomics,
+}, null, 2));
+
+{
+  "node": "v26.4.0",
+  "platform": "android",
+  "arch": "arm64",
+  "navigatorGpu": "undefined",
+  "gpuGlobal": "undefined",
+  "sharedArrayBuffer": "function",
+  "atomics": "object"
+}
+exit: 0
+
+--- Chromium executable discovery ---
+chromium: /data/data/com.termux/files/usr/bin/chromium-browser
+
++ /data/data/com.termux/files/usr/bin/chromium-browser --version
+Chromium 149.0.7827.155 
+exit: 0
+
+--- strict Chromium WebGPU embedding ---
+Chromium owns the Seek browser runtime and WebGPU; Node receives only the vector.
+{
+  "ok": false,
+  "elapsedMs": 1465,
+  "error": "Error: Chromium sidecar returned an invalid 384-value vector",
+  "stack": "Error: Chromium sidecar returned an invalid 384-value vector\n    at ChromiumSidecar.embed (file:///data/data/com.termux/files/home/Obsidian-Seek-MCP/src/chromium-sidecar.ts:162:78)\n    at async file:///data/data/com.termux/files/home/Obsidian-Seek-MCP/[eval1]:6:18"
+}
+
+=== test-5 complete ===
+Send this log file back: /data/data/com.termux/files/home/Obsidian-Seek-MCP/chromium-sidecar-20260909-191807.log
