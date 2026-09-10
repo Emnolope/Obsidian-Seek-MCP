@@ -44,6 +44,62 @@ or silently turn a strict WebGPU request into WASM. For the phone path, preserve
 Seek's model contract and test a browser WASM embedding requiring dimension 384,
 finite values, and a finite non-zero norm.
 
+## Postmortem correction
+
+The MCP core was working before the sidecar work. It was slower than the Seek
+plugin, but that observation did not prove a GPU-versus-CPU difference. The
+plugin report shows that Seek was also using CPU WASM on this phone: q4, plain
+ORT glue, and a proxy worker. The comparison was between different hosts and
+runtime arrangements, not between the same workload on GPU and CPU.
+
+The sidecar was a reasonable compatibility experiment because Node could not
+load the browser runtime's `blob:` module URL. The mistake was promoting it into
+a strict-WebGPU solution before measuring equivalent browser-WASM execution.
+The sidecar then introduced a transport bug and an unsupported/unstable backend
+into the normal mental model, making the previously working core appear broken.
+Preserve the core, keep the sidecar optional, and benchmark equivalent WASM
+paths before making performance claims.
+
+## Recovery map
+
+Do not reset the repository blindly. The history has three useful anchors:
+
+- `74f2853` (`Port Seek query embedding to WASM runtime`) is the initial MCP
+  query-WASM port.
+- `2978012` (`Align Seek compatibility guide and vector contract`) is the
+  earlier clean compatibility/query milestone.
+- `e1e8732` (`Document phone runtime findings and add device tests`) is the
+  exact parent of the first sidecar commit and the last mainline state before
+  `src/chromium-sidecar.ts` entered the branch.
+
+The GPU detour begins at `3e093b3` (`feat: add Chromium WebGPU sidecar probe`).
+The debug-heavy mutation begins at `24eee41`, followed by `9750e26`, `0b41d00`,
+`a6dc103`, and later probe commits. Mine those commits selectively, not
+wholesale. The isolated transport correction is `695d3d5`; keep it if retaining
+the sidecar, but do not carry the diagnostic churn forward as production design.
+
+## Next-session checklist
+
+Before editing, inspect `src/chromium-sidecar.ts`, `src/query-embedder.ts`, the
+copied `vendor/seek/src/iframe-runner.ts`, and the corresponding files in
+`/workspaces/Obsidian-Seek`. The local hypothesis to test is:
+
+> The existing browser child can produce the same q4 vector under WASM if it
+> uses Seek's plain glue override and does not request WebGPU.
+
+The cheapest discriminating check is one direct browser-page WASM load followed
+by one embedding. Require dimension 384, finite values, and a finite non-zero
+norm. Do not add worker transfer, model changes, Node approximations, or a new
+GPU theory until that direct check succeeds.
+
+The prior device evidence to retain while debugging is:
+
+- `chromium-sidecar-diagnostics-20260910-153700.log`: strict WebGPU reached
+  ORT, then failed at q4 `GatherBlockQuantized` after roughly 23 seconds of
+  cold start and 559 ms of warmup.
+- `device-tests/oneplus-6t/seek-report.json`: the plugin has no usable WebGPU
+  adapter and works with q4 WASM, plain glue, and a proxy worker.
+
 ## Ownership boundaries
 
 - Seek owns the indexing and embedding semantics.

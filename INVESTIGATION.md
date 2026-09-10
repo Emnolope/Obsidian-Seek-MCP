@@ -93,6 +93,45 @@ is rerun against the current files. A synthetic 384-value vector search
 completed across that earlier loaded set. There is no official MCP SDK
 dependency; transport is a small hand-written stdio loop.
 
+## Performance postmortem
+
+The MCP core was operational before the Chromium sidecar was introduced. Its
+query embedding appeared roughly one-half to one-quarter as fast as the Seek
+plugin, but no controlled benchmark established GPU versus CPU as the cause.
+The plugin report for the OnePlus 6T records `gpuAvailable: false`,
+`requestAdapter returned null`, and successful q4 WASM with plain glue and a
+proxy worker. The comparison was therefore between different browser/Node
+hosts, worker placement, startup state, and probably batching, not equivalent
+GPU and CPU runs.
+
+The sidecar was justified as a browser-runtime escape hatch because Node could
+not load the browser runtime's `blob:` module URL. The implementation mistake
+was treating strict WebGPU as the performance answer before reproducing Seek's
+actual WASM arrangement. The sidecar's CDP self-message bug was real and fixed,
+but the strict WebGPU experiment then exposed a separate q4/Dawn failure. This
+does not invalidate the MCP core. The next measurement is a controlled
+browser-WASM comparison; the sidecar remains optional.
+
+## Commit recovery map
+
+The repository history provides explicit recovery points:
+
+| Commit | Meaning |
+| --- | --- |
+| `74f2853` | Initial MCP Seek-compatible query-WASM port. |
+| `2978012` | Clean compatibility/query milestone before later device and sidecar work. |
+| `e1e8732` | Exact parent of the first sidecar commit; last mainline state before `src/chromium-sidecar.ts` entered the branch. |
+| `3e093b3` | First Chromium WebGPU sidecar probe and beginning of the GPU detour. |
+| `24eee41` | Beginning of heavy sidecar/debug instrumentation. |
+| `9750e26` | Large diagnostic expansion in `src/chromium-sidecar.ts`. |
+| `695d3d5` | Isolated fix preventing outgoing page RPCs from being read as replies. |
+
+Recovery should start from `e1e8732` for the core, then selectively reapply the
+sidecar boundary and `695d3d5` if browser hosting is still desired. Do not
+cherry-pick the debug expansion commits as a group. Reconcile
+`query-embedder.ts` against the pre-sidecar version and reintroduce
+browser-hosted WASM deliberately.
+
 ## Validation baseline
 
 The MCP repository's current checks are:
@@ -124,3 +163,31 @@ longer exists`. The separate Seek plugin report shows the actual working phone
 path is q4 WASM, plain glue, and a proxy worker; its WebGPU adapter is
 unavailable. A valid 384-value sidecar result remains unverified because the
 sidecar has not yet implemented the browser-WASM mode.
+
+The decisive sidecar artifact was
+`chromium-sidecar-diagnostics-20260910-153700.log`. It recorded a successful
+browser model-load response with `device: webgpu`, `dtype: q4`, approximately
+23 seconds of cold start, and approximately 559 ms of warmup before the first
+real embed failed. Seek's warmup loop catches individual inference failures, so
+those timings prove session setup reached the runtime but do not prove that the
+warmup computations succeeded. The first uncaught embed failed at the q4
+embedding-table gather. No explicit `webgpu-device-lost` or
+`webgpu-uncaptured-error` event was captured.
+
+The plugin evidence is in `device-tests/oneplus-6t/seek-report.json` and its
+summary. It records `gpuAvailable: false`, `requestAdapter returned null`,
+actual device `wasm`, dtype `q4`, glue `plain`, and `proxy: true`. Its reported
+cold start was approximately 32.5 seconds, with stable heap and approximately
+99.5 MB of model storage growth. This is the reference runtime arrangement for
+the next sidecar experiment.
+
+The next browser-WASM experiment should preserve the following exact contract:
+
+1. Request `wasm`, never WebGPU, in the browser child.
+2. Apply Seek's plain-glue replacement from
+  `ort-wasm-simd-threaded.asyncify.*` to `ort-wasm-simd-threaded.*`.
+3. Keep model, revision, q4 dtype, CLS pooling, normalization, max length 128,
+  and output dimension 384 unchanged.
+4. Prove one direct browser-page embedding before attempting a worker transfer.
+5. Report backend, glue, cold start, embedding latency, dimension, finite values,
+  and finite non-zero norm.

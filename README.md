@@ -83,6 +83,15 @@ second time.
 The server is intentionally read-only. It does not edit notes, run Git, or
 modify Seek's index.
 
+The MCP core and index/ranking path are independent of the experimental
+Chromium sidecar. Earlier speed comparisons showed MCP query embedding at about
+one-half to one-quarter of the plugin's apparent speed, but they did not compare
+equivalent execution environments. Seek's phone report shows the plugin was
+using CPU WASM, not GPU WebGPU: q4 with plain ORT glue and a proxy worker. Do
+not infer GPU acceleration from the speed gap or make the sidecar a required
+part of the server. The next performance comparison must hold model, text,
+batching, warm/cold state, worker placement, and runtime constant.
+
 ## Device tests
 
 Phone-specific diagnostics live under `device-tests/<device>/`. The current

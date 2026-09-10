@@ -36,6 +36,30 @@ human vault -> Seek indexes notes -> Git sync -> agent vault copy
 The agent copy is the read-side safety boundary. This MCP server does not edit
 notes, run Git, reindex Seek, or mutate the human source-of-truth vault.
 
+## Performance postmortem
+
+The original MCP core was functional, although its query embedding was measured
+at roughly one-half to one-quarter of the plugin's apparent speed. That gap was
+initially interpreted as evidence that Seek was using GPU execution while MCP
+was using CPU execution. The later Seek diagnostic report disproved that
+interpretation for the OnePlus 6T: the plugin had no usable WebGPU adapter and
+was working through q4 WASM, plain ORT glue, and a proxy worker.
+
+The old comparison therefore mixed hosts, worker placement, runtime loading,
+cold versus warm state, and likely batching. It was not an apples-to-apples GPU
+versus CPU benchmark. The MCP core was not invalidated by being slower, and the
+Chromium sidecar should not be treated as a replacement for it. The sidecar is
+now an optional browser-runtime compatibility boundary whose next useful mode is
+Seek-matched WASM. Strict WebGPU remains an experimental opt-in, not the default
+performance strategy.
+
+The recovery anchors are recorded in `HANDOFF.md` and `INVESTIGATION.md`:
+`e1e8732` is the last pre-sidecar mainline state, `3e093b3` introduces the
+strict-WebGPU sidecar detour, `24eee41` begins the debug-heavy expansion, and
+`695d3d5` is the isolated transport fix worth preserving. The next agent
+should reconcile code from those commits rather than treat the latest
+debug-heavy tree as the only source of truth.
+
 ## Current architecture
 
 The MCP server is a Node/TypeScript stdio process. It exposes one stable tool

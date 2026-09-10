@@ -570,6 +570,27 @@ device-tests/oneplus-6t/seek-report.md
 Generated device logs and reports should remain outside normal source commits
 unless deliberately preserved as evidence.
 
+## Recovery Anchors
+
+The next agent should not treat the latest debug-heavy tree as the only source
+of truth. The useful history anchors are:
+
+- `74f2853`: initial MCP Seek-compatible query-WASM port.
+- `2978012`: clean compatibility/query milestone.
+- `e1e8732`: exact parent of the first sidecar commit and the last mainline
+  state before `src/chromium-sidecar.ts` entered the repository.
+- `3e093b3`: first Chromium WebGPU sidecar probe; beginning of the GPU detour.
+- `24eee41`: beginning of the heavy debug/instrumentation sequence.
+- `9750e26`, `0b41d00`, `a6dc103`: subsequent diagnostic mutations, to be
+  mined for evidence rather than reapplied as a block.
+- `695d3d5`: isolated transport fix that prevents outgoing page RPCs from
+  being mistaken for child replies; preserve this fix where applicable.
+
+Recommended recovery is to start from `e1e8732`, compare the pre-sidecar
+`query-embedder.ts` and compatibility files, then reintroduce only the smallest
+browser-WASM boundary needed for the current goal. Do not merge the debug-heavy
+strict-WebGPU sequence wholesale.
+
 ## Validation Performed
 
 Local tests passed repeatedly:

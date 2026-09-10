@@ -32,6 +32,14 @@ handoff. Complete the critical items in order.
   path: q4, plain ORT glue, and a 384-value vector across CDP.
 - [ ] `[critical]` Run the browser-WASM device test and require dimension 384,
   finite values, finite non-zero norm, and measured latency.
+- [ ] `[critical]` Benchmark MCP direct WASM, Seek browser WASM, and sidecar
+  browser WASM with the same model, text set, batching, warm/cold state, and
+  worker placement before attributing any speed gap to GPU versus CPU.
+- [ ] `[critical]` Reconcile from the documented history anchors before the
+  browser-WASM implementation: use `e1e8732` as the pre-sidecar core, inspect
+  `3e093b3` for the first sidecar boundary, exclude the debug-heavy sequence
+  beginning at `24eee41`, and retain only the isolated transport fix
+  `695d3d5` where it still applies.
 
 ## Current implementation already complete
 
@@ -77,7 +85,9 @@ handoff. Complete the critical items in order.
 The Chromium sidecar choice has now been implemented experimentally. Its CDP
 return boundary is corrected, but its strict WebGPU mode fails on the phone.
 Do not reopen the native-build question; implement and test the browser-WASM
-mode first.
+mode first. The earlier MCP-versus-Seek speed gap is not evidence that a GPU
+sidecar was needed; the plugin's report identifies its working phone path as
+CPU WASM.
 
 ## Compatibility maintenance
 
