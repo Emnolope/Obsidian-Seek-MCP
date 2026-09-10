@@ -171,6 +171,29 @@ export class ChromiumSidecar {
     return Float32Array.from(values);
   }
 
+  async inspectEmbed(text: string): Promise<unknown> {
+    if (!this.browser) {
+      try { await this.start(); }
+      catch (error) { await this.close(); throw error; }
+    }
+    return this.evaluate(`window.__seekEmbed(${JSON.stringify(text)}).then(value => {
+      const vector = value && value.vector;
+      let sample = null;
+      try { sample = Array.from(vector ?? []).slice(0, 8); } catch (error) { sample = { error: String(error) }; }
+      return {
+        resultType: typeof value,
+        resultConstructor: value?.constructor?.name ?? null,
+        resultKeys: value && typeof value === 'object' ? Object.keys(value) : [],
+        vectorType: typeof vector,
+        vectorConstructor: vector?.constructor?.name ?? null,
+        vectorLength: vector?.length ?? null,
+        vectorKeys: vector && typeof vector === 'object' ? Object.keys(vector).slice(0, 12) : [],
+        vectorSample: sample,
+        latencyMs: value?.latencyMs ?? null,
+      };
+    })`);
+  }
+
   async close(): Promise<void> {
     this.cdp?.close();
     this.cdp = null;
