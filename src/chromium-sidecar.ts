@@ -128,8 +128,10 @@ window.addEventListener('message', (event) => {
     console.log('[seek-debug] rpc resolved', { id: data.id, resultType: typeof data.result, keys: data.result && typeof data.result === 'object' ? Object.keys(data.result) : [] });
     pending.resolve(data.result);
   } else {
-    const detail = data.error || data.stack || 'Seek browser RPC failed';
-    console.error('[seek-debug] rpc rejected', { id: data.id, error: data.error, stack: data.stack, raw: data });
+    let rawJson;
+    try { rawJson = JSON.stringify(data); } catch (error) { rawJson = 'unserializable: ' + String(error); }
+    const detail = data.error || data.stack || 'Seek browser RPC failed; message keys: ' + Object.keys(data).join(',') + '; raw: ' + rawJson;
+    console.error('[seek-debug] rpc rejected', { id: data.id, error: data.error, stack: data.stack, keys: Object.keys(data), rawJson });
     pending.reject(new Error(detail));
   }
 });
