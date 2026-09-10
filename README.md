@@ -39,15 +39,17 @@ implementation.
 The compatibility contract is documented in
 [`src/SEEK-COMPATIBILITY.md`](src/SEEK-COMPATIBILITY.md) and implemented by
 [`src/seek-compatibility.ts`](src/seek-compatibility.ts). The default query
-backend is WASM. Set `SEEK_MCP_DEVICE=auto` to attempt WebGPU and fall back to
-WASM, or `SEEK_MCP_DEVICE=webgpu` to require the Chromium sidecar and fail
-instead of silently falling back. The sidecar launches the Chromium binary
-named by `SEEK_CHROMIUM_PATH`, serves the existing Seek browser child script,
-and is intended to return only the 384-value query vector over the DevTools
-Protocol. The sidecar reaches the browser path on the target phone, but its
-final return payload is not yet hardware-validated.
-Chromium owns Transformers.js, ORT-Web, model loading, and WebGPU; Node owns
-MCP transport, vault loading, and ranking. Backend choice changes execution
+backend is WASM. Set `SEEK_MCP_DEVICE=auto` to attempt the optional WebGPU path
+and fall back to WASM, or set `SEEK_MCP_DEVICE=webgpu` to require the Chromium
+sidecar and fail instead of silently falling back. The sidecar launches the
+Chromium binary named by `SEEK_CHROMIUM_PATH`, serves the existing Seek browser
+child script, and is intended to return only the 384-value query vector over
+the DevTools Protocol. On the OnePlus 6T, the sidecar transport reaches
+ORT-Web, but strict q4 WebGPU fails with an invalid external Dawn instance.
+Seek's working plugin report shows that the phone uses q4 WASM with plain glue
+and a proxy worker; browser-hosted WASM is the next sidecar target.
+Chromium owns browser Transformers.js/ORT-Web execution; Node owns MCP
+transport, vault loading, and ranking. Backend choice changes execution
 environment and speed, not the model/vector-space contract.
 
 The current Seek exporter writes `MCP Export/` under the hidden path
@@ -87,8 +89,11 @@ Phone-specific diagnostics live under `device-tests/<device>/`. The current
 suite is `device-tests/oneplus-6t/`; run it from the repository root on the
 matching Termux device. The scripts currently default generated logs to the
 repository root unless `SEEK_PROBE_OUT` is set; keep new logs out of commits.
-`test-6.sh` is the current diagnostic because it serializes a flat report in
-the browser before crossing CDP, avoiding the earlier empty-object result.
+`test-6.sh` serializes a flat report in the browser before crossing CDP, while
+`test-7.sh` captures raw browser console and exception events. The transport
+probe is complete enough to diagnose the WebGPU failure; use the existing
+scripts as evidence tools, not as proof that strict WebGPU is the phone's
+working backend.
 
 Short version: the AI can generate the probe, but the phone owns the execution
 and permission boundary. A server-side VM is not a phone and cannot claim a
@@ -137,9 +142,10 @@ Phone validation in Termux found no Node `navigator.gpu`, no published Android
 ARM64 Dawn binary, and no Android-compatible `onnxruntime-node` package. After
 installing the web runtime's declared common dependency, the browser-oriented
 WASM loader still reached a Node-incompatible `blob:` module URL. The next
-runtime boundary is therefore the Chromium sidecar; it preserves Seek's
-browser-compatible runtime and does not change the model/vector compatibility
-contract.
+runtime boundary is therefore the Chromium sidecar for the phone's browser-WASM
+path; it preserves Seek's browser-compatible runtime and does not change the
+model/vector compatibility contract. Strict WebGPU remains an explicit,
+experimental path rather than the phone default.
 
 The real synchronized `system-vault` export is separate from this repository.
 Its current export contains 6,735 document records and 6,736 native locator

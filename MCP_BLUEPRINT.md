@@ -36,10 +36,11 @@ Dawn has no Android ARM64 binary, and the browser-oriented WASM path reaches a
 Node-incompatible `blob:` module URL. The experimental Chromium sidecar owns
 only query embedding and returns a 384-value vector across a narrow local
 boundary; the Node process retains vault loading, ranking, and MCP transport.
-The sidecar is merged into `main`, and its browser launch path was observed on
-the OnePlus 6T. The final CDP payload still
-needs hardware evidence from `test-6.sh` before this boundary is treated as
-working.
+The sidecar is merged into `main`, and its browser launch and corrected CDP
+request/reply path were observed on the OnePlus 6T. Strict WebGPU then reached
+ORT-Web but failed in q4 `GatherBlockQuantized` with an invalid external Dawn
+instance. The plugin report shows the phone's working backend is q4 WASM with
+plain glue and a proxy worker, so browser-hosted WASM is the next sidecar mode.
 The default result limit is 10 and the allowed range is 1 through 100.
 
 ## Location resolution

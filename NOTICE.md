@@ -27,7 +27,7 @@ The vendored snapshots retain their upstream attribution and license notices.
 specification, and `src/seek-compatibility.ts` is its MCP-owned executable
 contract for the pinned model, backend policy, and vector post-processing;
 `vendor/seek/runtime/transformers.web.js` is the copied Transformers.js web
-runtime used to preserve Seek's WASM path. The MCP transport, vault resolver,
+runtime used to preserve Seek's browser WASM path. The MCP transport, vault resolver,
 loader diagnostics, and document manifest consumer are new project code. The
 plugin-side exporter lives in the separate
 Seek checkout and currently follows plugin commit

@@ -26,27 +26,30 @@ another change. Do not declare a hardware path working from container tests.
 ## Current handoff
 
 The Chromium sidecar is experimental and has been merged into `main`. It is not
-a validated release. Chromium `149.0.7827.155` was observed launching on the
-OnePlus 6T, and the copied Seek browser path was reached, but this handoff does
-not contain the final device evidence that a 384-value vector survives the CDP
-boundary.
+a validated release. Chromium `149.0.7827.155` launched on the OnePlus 6T, the
+copied Seek browser path became ready, and the CDP self-message bug was fixed in
+commit `695d3d5`.
 
-The next discriminating action is:
+The device evidence now separates two facts. The sidecar reaches the real
+Transformers.js/ORT-Web runtime, but strict WebGPU fails during q4 execution
+with `GatherBlockQuantized` and `A valid external Instance reference no longer
+exists`. The working Seek plugin report shows that this phone has no usable
+WebGPU adapter and succeeds through q4 WASM with plain ORT glue and a proxy
+worker. The next discriminating implementation is therefore a browser-hosted
+WASM sidecar path, not another strict-WebGPU transport probe.
 
-```sh
-./device-tests/oneplus-6t/test-6.sh
-```
-
-Inspect the flat report before changing transport code. Then run `test-5.sh`
-and require `ok: true`, dimension `384`, finite values, and a finite non-zero
-norm. Do not replace the browser runtime with a Node approximation, silently
-fall back from strict WebGPU, or make another speculative serialization change
-before the report is understood.
+Keep strict `SEEK_MCP_DEVICE=webgpu` available as an explicit experimental mode
+that fails loudly. Do not replace the browser runtime with a Node approximation
+or silently turn a strict WebGPU request into WASM. For the phone path, preserve
+Seek's model contract and test a browser WASM embedding requiring dimension 384,
+finite values, and a finite non-zero norm.
 
 ## Ownership boundaries
 
 - Seek owns the indexing and embedding semantics.
-- Chromium owns the browser Transformers.js/ORT-Web path in strict WebGPU mode.
+- Chromium owns the optional browser Transformers.js/ORT-Web execution path;
+  the validated phone reference is browser WASM, while strict WebGPU remains
+  experimental.
 - Node owns MCP transport, vault access, index loading, and ranking.
 - The MCP server is read-only and must not edit notes, run Git, reindex Seek, or
   create a competing vector-generation pipeline.

@@ -8,8 +8,9 @@ This file records verified implementation facts. The rationale belongs in
 ## Repository versions
 
 - MCP repository: `/workspaces/Obsidian-Seek-MCP`
-- MCP commit/release: `63d4cc5` on `main` /
-  `Obsidian-Vault-MCP-v4` remains the published baseline
+- MCP commit/release: `main` includes the experimental sidecar and the
+  self-message fix `695d3d5`; `Obsidian-Vault-MCP-v4` remains the published
+  baseline
 - Seek checkout: `/workspaces/Obsidian-Seek`
 - Seek plugin commit: `06b837126f66d54db97ef8785a7c95750e48c311`
 - Compatibility source commit: `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`
@@ -113,8 +114,13 @@ installs, but the real embedder fails on Node with
 throughput result was produced by those tests. Phone-side `test-5.sh` later
 confirmed Chromium `149.0.7827.155` launches at
 `/data/data/com.termux/files/usr/bin/chromium-browser` and reaches the browser
-embedding path, but the CDP return payload was malformed. `test-6.sh` was added
-to inspect that payload; this session does not have its final device output.
-Strict WebGPU and a valid 384-value return therefore remain unverified. The
-next agent should inspect `test-6.sh` output before making another transport
-change.
+embedding path, but the CDP return payload was malformed. `test-6.sh` and
+`test-7.sh` then captured the raw payload and console events and exposed a
+sidecar self-message bug; commit `695d3d5` fixed it.
+
+After that fix, the device reached ORT-Web model execution. Strict q4 WebGPU
+failed in `GatherBlockQuantized` with `A valid external Instance reference no
+longer exists`. The separate Seek plugin report shows the actual working phone
+path is q4 WASM, plain glue, and a proxy worker; its WebGPU adapter is
+unavailable. A valid 384-value sidecar result remains unverified because the
+sidecar has not yet implemented the browser-WASM mode.

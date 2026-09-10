@@ -65,12 +65,16 @@ inputs are accounted for.
 ## Backend policy
 
 The MCP implementation defaults to WASM because it runs in plain Node and does
-not require a browser. Strict WebGPU runs the copied browser child through the
-Chromium sidecar (`src/chromium-sidecar.ts`); Node never embeds the model in
-that mode. The backend policy is implemented in
+not require a browser when the runtime can load. The browser-hosted WASM path is
+the required Android/Termux fallback because Node's browser runtime can produce
+a `blob:` module URL that Node's ESM loader rejects. Strict WebGPU runs the
+copied browser child through the Chromium sidecar (`src/chromium-sidecar.ts`);
+Node never embeds the model in that mode. The backend policy is implemented in
 `src/seek-compatibility.ts` and consumed by `src/query-embedder.ts`:
 
-- `SEEK_MCP_DEVICE=wasm` selects the portable CPU/WASM path.
+- `SEEK_MCP_DEVICE=wasm` selects the portable CPU/WASM path. On the phone,
+  browser-hosted WASM must use Seek's plain ORT glue; a sidecar implementation
+  of this mode is pending.
 - `SEEK_MCP_DEVICE=auto` attempts WebGPU and falls back to WASM if pipeline
    creation fails.
 - `SEEK_MCP_DEVICE=webgpu` launches Chromium through the sidecar and fails if
@@ -88,8 +92,10 @@ adaptations, not part of the vector contract. The experimental Chromium
 sidecar reuses the copied Seek child runtime, but remains optional. Phone-side
 Termux tests found no Node `navigator.gpu`, no published Android Dawn binary,
 and a Node-incompatible `blob:` module URL in the browser-oriented WASM path.
-Those findings justify a sidecar boundary for execution, but do not alter the
-model, tokenizer, pooling, normalization, dtype, or output-dimension contract.
+The plugin's own report then showed no usable WebGPU adapter and a working q4
+WASM path with plain glue and a proxy worker. These findings justify a browser
+sidecar for execution, but do not alter the model, tokenizer, pooling,
+normalization, dtype, or output-dimension contract.
 
 ## Validation commands
 

@@ -14,7 +14,7 @@ silently editing the human source of truth or inventing a second embedding
 space. Compatibility, read-only behavior, and explicit unfinished work matter
 more here than making the repository look complete.
 
-Short version: the AI may prepare a Chromium/WebGPU probe, but the phone owns
+Short version: the AI may prepare a Chromium/browser-runtime probe, but the phone owns
 the actual execution and permission boundary. A remote VM or data-center process
 is not a phone and cannot claim device validation. The user runs the probe on
 the target device, records the result, and sends that evidence back through the
@@ -126,9 +126,12 @@ fails because it has no `android-arm64/dawn.node` binary. The official
 The phone-side tests also corrected the declared `onnxruntime-common` version
 and installed it successfully. The real Seek-compatible web/WASM embedder still
 failed because the browser-oriented runtime produced a `blob:` module URL that
-Node's ESM loader does not support. The experimental Chromium sidecar now
-supplies the browser environment expected by the copied web stack, and its
-launch and browser embedding path were reached on the OnePlus 6T. The final
-384-value CDP payload was not available for this handoff, so valid phone
-embedding and throughput remain unverified. A custom Android native build is
-not yet justified by evidence.
+Node's ESM loader does not support. The experimental Chromium sidecar supplies
+the browser environment expected by the copied web stack, and its launch, child
+handshake, and CDP request/reply path were reached on the OnePlus 6T. The
+sidecar's self-message bug was fixed, after which strict WebGPU reached ORT-Web
+but failed during q4 `GatherBlockQuantized` execution with an invalid external
+WebGPU instance. The plugin's own report shows the phone has no usable WebGPU
+adapter and succeeds through q4 WASM with plain ORT glue and a proxy worker. A
+browser-hosted WASM sidecar is the next runtime target. A custom Android native
+build is not yet justified by evidence.

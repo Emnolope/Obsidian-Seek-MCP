@@ -21,15 +21,17 @@ handoff. Complete the critical items in order.
   server for large notes and PicoClaw context.
 - [x] `[critical]` Build the smallest Chromium sidecar boundary for query
   embedding, preserving the copied Seek browser runtime and defining a
-  browser-to-Node vector boundary. Hardware validation of the returned payload
-  remains pending on the OnePlus 6T.
-- [ ] `[critical]` Run `device-tests/oneplus-6t/test-6.sh` on the target phone
-  and inspect its flat report. Confirm the browser result has a vector
-  constructor, length 384, finite sample values, and a usable latency before
-  changing CDP transport code.
-- [ ] `[critical]` After the raw report is available, make the smallest
-  transport fix required by the observed result and rerun `test-5.sh` for a
-  real 384-value embedding.
+  browser-to-Node vector boundary.
+- [x] `[critical]` Run the device diagnostics and inspect the flat/raw reports.
+  The reports proved Chromium launch, child readiness, and the initial CDP
+  boundary; they also exposed the self-message bug.
+- [x] `[critical]` Make and validate the smallest transport fix required by the
+  observed result. Commit `695d3d5` ignores outgoing page requests that were
+  being mistaken for child replies.
+- [ ] `[critical]` Add a browser-hosted WASM sidecar mode matching Seek's phone
+  path: q4, plain ORT glue, and a 384-value vector across CDP.
+- [ ] `[critical]` Run the browser-WASM device test and require dimension 384,
+  finite values, finite non-zero norm, and measured latency.
 
 ## Current implementation already complete
 
@@ -66,12 +68,16 @@ handoff. Complete the critical items in order.
 - [x] Confirm the browser-oriented WASM path fails on Node at `blob:` module
   loading before producing an embedding.
 - [x] Choose Chromium sidecar IPC over a custom Android native build for the
-  experimental browser boundary; final payload validation remains pending.
+  experimental browser boundary.
+- [x] Confirm the phone's working Seek plugin backend is q4 WASM with plain
+  glue and a proxy worker; strict WebGPU is unavailable on that plugin host.
+- [ ] Port that browser-WASM execution mode into the sidecar before treating
+  phone query embedding as validated.
 
-The Chromium sidecar choice has now been implemented experimentally. The
-remaining question is whether its CDP return boundary is correct on the target
-device; do not reopen the native-build question until the sidecar evidence is
-available.
+The Chromium sidecar choice has now been implemented experimentally. Its CDP
+return boundary is corrected, but its strict WebGPU mode fails on the phone.
+Do not reopen the native-build question; implement and test the browser-WASM
+mode first.
 
 ## Compatibility maintenance
 

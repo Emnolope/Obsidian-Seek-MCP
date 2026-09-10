@@ -82,9 +82,13 @@ reconstructing the design.
 normalization, model, revision, token limit, output dimension, and default WASM
 glue selection. The compatibility module also exposes explicit `wasm`, `auto`,
 and strict `webgpu` requests. The copied web runtime remains the execution
-path; the MCP-specific adaptation replaces the plugin iframe/message boundary
-with a Node import boundary. WebGPU remains optional because Node/Termux does
-not necessarily expose the browser APIs used by Seek.
+path; the MCP-specific adaptation currently replaces the plugin iframe/message
+boundary with a Node import boundary for the default path and a Chromium
+sidecar boundary for strict WebGPU. Device evidence now shows that the phone's
+working plugin path is browser-hosted WASM with plain glue and a proxy worker;
+the next sidecar adaptation should preserve that runtime path. WebGPU remains
+optional because Node/Termux does not expose the browser APIs used by Seek and
+the phone's plugin host reports no usable adapter.
 
 ## Maintenance procedure
 
