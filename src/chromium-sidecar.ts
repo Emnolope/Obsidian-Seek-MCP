@@ -158,9 +158,13 @@ export class ChromiumSidecar {
       try { await this.start(); }
       catch (error) { await this.close(); throw error; }
     }
-    const result = await this.evaluate<{ vector: number[] }>(`window.__seekEmbed(${JSON.stringify(text)}).then(value => ({ vector: Array.from(value.vector) }))`);
-    if (!Array.isArray(result.vector) || result.vector.length !== 384) throw new Error('Chromium sidecar returned an invalid 384-value vector');
-    return Float32Array.from(result.vector);
+    const encoded = await this.evaluate<string>(`window.__seekEmbed(${JSON.stringify(text)}).then(value => JSON.stringify(Array.from(value.vector)))`);
+    let values: unknown;
+    try { values = JSON.parse(encoded); } catch { throw new Error('Chromium sidecar returned invalid vector JSON'); }
+    if (!Array.isArray(values) || values.length !== 384 || !values.every((value) => typeof value === 'number' && Number.isFinite(value))) {
+      throw new Error('Chromium sidecar returned an invalid 384-value vector');
+    }
+    return Float32Array.from(values);
   }
 
   async close(): Promise<void> {
