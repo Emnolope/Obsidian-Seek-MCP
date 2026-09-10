@@ -118,6 +118,10 @@ window.addEventListener('message', (event) => {
     console.error('[seek-debug] __error message received', data);
     return;
   }
+  if (typeof data.ok !== 'boolean') {
+    console.log('[seek-debug] ignoring non-reply message', { id: data.id, type: data.type, keys: Object.keys(data) });
+    return;
+  }
   const pending = window.__seekPending.get(data.id);
   if (!pending) {
     console.warn('[seek-debug] unexpected message without pending RPC', data);
