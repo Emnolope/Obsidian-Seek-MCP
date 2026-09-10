@@ -85,27 +85,90 @@ class CdpConnection {
 
 const BROWSER_HTML = (childScript: string) => `<!doctype html><meta charset="utf-8"><script>
 window.__seekReady = false;
+window.__seekLoaded = false;
 window.__seekPending = new Map();
+window.__seekDebug = {
+  ready: () => window.__seekReady,
+  loaded: () => window.__seekLoaded,
+  pendingIds: () => Array.from(window.__seekPending.keys()),
+  globals: () => Object.keys(window).filter((key) => key.startsWith('__seek')),
+};
 window.addEventListener('message', (event) => {
   const data = event.data;
-  if (data && data.id === '__ready') { window.__seekReady = true; return; }
-  const pending = data && window.__seekPending.get(data.id);
-  if (!pending) return;
+  if (!data || typeof data !== 'object') {
+    console.error('[seek-debug] non-object message received', data);
+    return;
+  }
+  if (data.id === '__ready') {
+    console.log('[seek-debug] __ready handshake received');
+    window.__seekReady = true;
+    return;
+  }
+  if (data.id === '__error') {
+    console.error('[seek-debug] __error message received', data);
+    return;
+  }
+  const pending = window.__seekPending.get(data.id);
+  if (!pending) {
+    console.warn('[seek-debug] unexpected message without pending RPC', data);
+    return;
+  }
   window.__seekPending.delete(data.id);
   if (data.ok) pending.resolve(data.result);
   else pending.reject(new Error(data.error || 'Seek browser RPC failed'));
 });
 window.__seekRpc = (type, payload) => new Promise((resolve, reject) => {
   const id = 'mcp-' + crypto.randomUUID();
+  console.log('[seek-debug] rpc request', { id, type, payloadKeys: payload && typeof payload === 'object' ? Object.keys(payload) : null });
   window.__seekPending.set(id, { resolve, reject });
   window.postMessage({ id, type, payload }, '*');
 });
 window.__seekEmbed = async (text) => {
-  if (!window.__seekLoaded) {
-    await window.__seekRpc('load', { modelId: 'tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX', device: 'webgpu', dtype: 'q4', skipWarmup: false, revision: '54db88c5667bd79b4aea24ea6027a7ef45a7bbb5' });
-    window.__seekLoaded = true;
+  try {
+    console.log('[seek-debug] __seekEmbed invoked', { text, ready: window.__seekReady, loaded: window.__seekLoaded, pending: Array.from(window.__seekPending.keys()) });
+    if (!window.__seekReady) {
+      throw new Error('Seek browser runtime not ready: __seekReady is false');
+    }
+    if (!window.__seekLoaded) {
+      console.log('[seek-debug] loading model inside browser');
+      const loadResult = await window.__seekRpc('load', {
+        modelId: 'tooape/granite-embedding-97m-multilingual-r2-GBQ4-ONNX',
+        device: 'webgpu',
+        dtype: 'q4',
+        skipWarmup: false,
+        revision: '54db88c5667bd79b4aea24ea6027a7ef45a7bbb5',
+      });
+      console.log('[seek-debug] load result', loadResult);
+      if (loadResult && loadResult.error) {
+        throw new Error('Browser load failed: ' + String(loadResult.error));
+      }
+      window.__seekLoaded = true;
+    }
+    const result = await window.__seekRpc('embed', { text });
+    console.log('[seek-debug] embed result', {
+      resultType: typeof result,
+      constructor: result && typeof result === 'object' ? result.constructor?.name ?? null : null,
+      keys: result && typeof result === 'object' ? Object.keys(result) : [],
+      hasVector: !!(result && typeof result === 'object' && 'vector' in result),
+      vectorType: result && typeof result === 'object' && 'vector' in result ? typeof result.vector : null,
+      vectorLen: result && typeof result === 'object' && 'vector' in result && result.vector && typeof result.vector === 'object' ? result.vector.length : null,
+    });
+    if (!result || typeof result !== 'object' || !('vector' in result)) {
+      const state = {
+        ready: window.__seekReady,
+        loaded: window.__seekLoaded,
+        globals: Object.keys(window).filter((key) => key.startsWith('__seek')),
+        pending: Array.from(window.__seekPending.keys()),
+        result,
+      };
+      throw new Error('Browser embed returned invalid object: ' + JSON.stringify(state));
+    }
+    return result;
+  } catch (error) {
+    const detail = error instanceof Error ? error.stack ?? error.message : String(error);
+    console.error('[seek-debug] __seekEmbed threw', { text, ready: window.__seekReady, loaded: window.__seekLoaded, detail });
+    throw error;
   }
-  return window.__seekRpc('embed', { text });
 };
 </script><script type="module">${childScript}</script>`;
 
@@ -183,11 +246,24 @@ export class ChromiumSidecar {
 
   private async evaluate<T>(expression: string): Promise<T> {
     if (!this.cdp || !this.sessionId) throw new Error('Chromium sidecar is not started');
-    const result = await this.cdp.command<{ result: { value?: T; description?: string } }>('Runtime.evaluate', {
+    const result = await this.cdp.command<{ result?: { type?: string; subtype?: string; value?: T; description?: string; objectId?: string }; exceptionDetails?: { text?: string } }>('Runtime.evaluate', {
       expression, awaitPromise: true, returnByValue: true,
     }, this.sessionId);
-    if (result.result.value === undefined) throw new Error(result.result.description ?? 'Chromium evaluation returned no value');
-    return result.result.value;
+
+    if (result.exceptionDetails) {
+      const text = result.exceptionDetails.text ?? 'Unknown Chromium exception';
+      throw new Error(`Chromium evaluation threw: ${text}\nExpression: ${expression}`);
+    }
+    if (!result.result) {
+      throw new Error(`Chromium evaluation returned no result for expression: ${expression}`);
+    }
+    if (result.result.value === undefined && result.result.type !== 'object') {
+      throw new Error(`Chromium evaluation returned no value for expression: ${expression}. Details: ${result.result.description ?? 'no description'}`);
+    }
+    if (result.result.value === undefined && result.result.type === 'object') {
+      throw new Error(`Chromium evaluation returned an object without a primitive value for expression: ${expression}. Details: ${result.result.description ?? 'no description'}; objectId=${result.result.objectId ?? 'n/a'}`);
+    }
+    return result.result.value as T;
   }
 
   async embed(text: string): Promise<Float32Array> {
@@ -195,17 +271,36 @@ export class ChromiumSidecar {
       try { await this.start(); }
       catch (error) { await this.close(); throw error; }
     }
-    const encoded = await this.evaluate<unknown>(`window.__seekEmbed(${JSON.stringify(text)}).then(value => Array.from(value.vector))`);
-    let values: unknown;
-    if (typeof encoded === 'string') {
-      try { values = JSON.parse(encoded); } catch { throw new Error('Chromium sidecar returned invalid vector JSON'); }
-    } else {
-      values = encoded;
+    const probe = await this.evaluate<string>(`(() => {
+      try {
+        const fn = window.__seekEmbed;
+        const state = {
+          ready: !!window.__seekReady,
+          loaded: !!window.__seekLoaded,
+          hasSeekEmbed: typeof fn,
+          seekEmbedString: typeof fn === 'function' ? fn.toString().slice(0, 200) : null,
+          keys: Object.keys(window).filter((key) => key.startsWith('__seek')),
+        };
+        if (typeof fn !== 'function') {
+          return JSON.stringify({ ok: false, error: 'window.__seekEmbed is not a function', state });
+        }
+        return Promise.resolve(fn(${JSON.stringify(text)})).then((value) => {
+          const vector = value && typeof value === 'object' ? value.vector : undefined;
+          const raw = Array.isArray(vector) ? vector : (vector && typeof vector === 'object' && typeof vector.length === 'number' ? Array.from(vector) : null);
+          return JSON.stringify({ ok: Array.isArray(raw) && raw.length === 384 && raw.every((v) => typeof v === 'number' && Number.isFinite(v)), vector: raw, state });
+        }).catch((error) => JSON.stringify({ ok: false, error: String(error), stack: error && error.stack ? error.stack : null, state }));
+      } catch (error) {
+        return JSON.stringify({ ok: false, error: String(error), stack: error && error.stack ? error.stack : null, state: { ready: !!window.__seekReady, loaded: !!window.__seekLoaded, globals: Object.keys(window).filter((key) => key.startsWith('__seek')) } });
+      }
+    })()`);
+
+    let parsed: any;
+    try { parsed = JSON.parse(probe); } catch { throw new Error(`Chromium returned non-JSON embed probe: ${String(probe)}`); }
+    if (!parsed || parsed.ok !== true || !Array.isArray(parsed.vector) || parsed.vector.length !== 384 || !parsed.vector.every((value: unknown) => typeof value === 'number' && Number.isFinite(value))) {
+      const detail = parsed && parsed.state ? JSON.stringify(parsed.state) : String(probe);
+      throw new Error(`Chromium sidecar returned an invalid 384-value vector; browser state: ${detail}`);
     }
-    if (!Array.isArray(values) || values.length !== 384 || !values.every((value) => typeof value === 'number' && Number.isFinite(value))) {
-      throw new Error(`Chromium sidecar returned an invalid 384-value vector (${typeof values})`);
-    }
-    return Float32Array.from(values);
+    return Float32Array.from(parsed.vector);
   }
 
   async inspectEmbed(text: string): Promise<unknown> {
@@ -213,17 +308,27 @@ export class ChromiumSidecar {
       try { await this.start(); }
       catch (error) { await this.close(); throw error; }
     }
-    return this.evaluate<string>(`window.__seekEmbed(${JSON.stringify(text)}).then(value => {
-      const result = value && typeof value === 'object' ? value : { raw: value };
-      const vector = result && typeof result === 'object' ? result.vector : undefined;
-      const summary = (() => {
+    return this.evaluate<string>(`(() => {
+      const fn = window.__seekEmbed;
+      const state = {
+        ready: !!window.__seekReady,
+        loaded: !!window.__seekLoaded,
+        hasSeekEmbed: typeof fn,
+        seekEmbedKeys: Object.keys(window).filter((key) => key.startsWith('__seek')),
+        pending: window.__seekPending ? Array.from(window.__seekPending.keys()) : [],
+        fnSource: typeof fn === 'function' ? fn.toString().slice(0, 250) : null,
+      };
+      if (typeof fn !== 'function') {
+        return JSON.stringify({ ok: false, error: 'window.__seekEmbed is not a function', state });
+      }
+      return Promise.resolve(fn(${JSON.stringify(text)})).then((value) => {
+        const result = value && typeof value === 'object' ? value : { raw: value };
+        const vector = result && typeof result === 'object' ? result.vector : undefined;
         let sample = null;
-        try {
-          sample = Array.isArray(vector) ? vector.slice(0, 8) : (vector && typeof vector === 'object' && 'length' in vector ? Array.from(vector).slice(0, 8) : null);
-        } catch (error) {
-          sample = { error: String(error) };
-        }
-        return {
+        try { sample = Array.isArray(vector) ? vector.slice(0, 8) : (vector && typeof vector === 'object' && 'length' in vector ? Array.from(vector).slice(0, 8) : null); } catch (error) { sample = { error: String(error) }; }
+        return JSON.stringify({
+          ok: true,
+          state,
           resultType: typeof value,
           resultConstructor: value && typeof value === 'object' ? value.constructor?.name ?? null : null,
           resultKeys: result && typeof result === 'object' ? Object.keys(result) : [],
@@ -234,11 +339,8 @@ export class ChromiumSidecar {
           vectorSample: sample,
           latencyMs: result && typeof result === 'object' ? result.latencyMs ?? null : null,
           errorText: result && typeof result === 'object' && typeof result.error === 'string' ? result.error : null,
-          exceptionText: result && typeof result === 'object' && result.exceptionDetails && typeof result.exceptionDetails === 'object' && 'text' in result.exceptionDetails ? String(result.exceptionDetails.text ?? '') || null : null,
-          pageGlobalKeys: Object.keys(window).slice(0, 30),
-        };
-      })();
-      return JSON.stringify(summary);
+        });
+      }).catch((error) => JSON.stringify({ ok: false, error: String(error), stack: error && error.stack ? error.stack : null, state }));
     })()`);
   }
 
