@@ -19,9 +19,10 @@ handoff. Complete the critical items in order.
   malformed JSON, unknown tools, and invalid arguments.
 - [ ] `[critical]` Bound search and fetch response sizes before relying on the
   server for large notes and PicoClaw context.
-- [ ] `[critical]` Build the smallest Chromium sidecar boundary for phone query
+- [x] `[critical]` Build the smallest Chromium sidecar boundary for query
   embedding, preserving the copied Seek browser runtime and returning only the
-  384-value query vector to the Node MCP process.
+  384-value query vector to the Node MCP process. Hardware validation remains
+  pending on a machine with Chromium and usable WebGPU.
 
 ## Current implementation already complete
 

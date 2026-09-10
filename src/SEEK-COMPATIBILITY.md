@@ -65,14 +65,18 @@ inputs are accounted for.
 ## Backend policy
 
 The MCP implementation defaults to WASM because it runs in plain Node and does
-not require a browser. The backend policy is implemented in
+not require a browser. Strict WebGPU runs the copied browser child through the
+Chromium sidecar (`src/chromium-sidecar.ts`); Node never embeds the model in
+that mode. The backend policy is implemented in
 `src/seek-compatibility.ts` and consumed by `src/query-embedder.ts`:
 
 - `SEEK_MCP_DEVICE=wasm` selects the portable CPU/WASM path.
 - `SEEK_MCP_DEVICE=auto` attempts WebGPU and falls back to WASM if pipeline
    creation fails.
-- `SEEK_MCP_DEVICE=webgpu` attempts WebGPU and fails if pipeline creation
-   fails; it never silently changes the requested backend.
+- `SEEK_MCP_DEVICE=webgpu` launches Chromium through the sidecar and fails if
+   Chromium, WebGPU, or the pinned pipeline cannot initialize; it never
+   silently changes the requested backend. Set `SEEK_CHROMIUM_PATH` when
+   `chromium` is not on `PATH`.
 
 The default for an unset or invalid value is `wasm`. Merely exposing
 `navigator.gpu` is not proof of a usable backend; pipeline creation is the

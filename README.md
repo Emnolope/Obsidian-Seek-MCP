@@ -49,10 +49,13 @@ The compatibility contract is documented in
 [`src/SEEK-COMPATIBILITY.md`](src/SEEK-COMPATIBILITY.md) and implemented by
 [`src/seek-compatibility.ts`](src/seek-compatibility.ts). The default query
 backend is WASM. Set `SEEK_MCP_DEVICE=auto` to attempt WebGPU and fall back to
-WASM, or `SEEK_MCP_DEVICE=webgpu` to require WebGPU and fail instead of
-silently falling back. Backend choice changes execution environment and speed,
-not the model/vector-space contract. A plain Node or Termux process may not
-provide usable WebGPU even when the phone's browser does.
+WASM, or `SEEK_MCP_DEVICE=webgpu` to require the Chromium sidecar and fail
+instead of silently falling back. The sidecar launches the Chromium binary
+named by `SEEK_CHROMIUM_PATH`, serves the existing Seek browser child script,
+and returns only the 384-value query vector over the DevTools Protocol.
+Chromium owns Transformers.js, ORT-Web, model loading, and WebGPU; Node owns
+MCP transport, vault loading, and ranking. Backend choice changes execution
+environment and speed, not the model/vector-space contract.
 
 The current Seek exporter writes `MCP Export/` under the hidden path
 unconditionally. The visible fallback is therefore a resolver capability, not
@@ -128,16 +131,15 @@ The first natural-language query loads the pinned Granite model through the
 vendored Seek-compatible Transformers.js web bundle and may download it from
 the model host. Later queries reuse the in-process pipeline. The default MCP
 adapter selects the same WASM execution path and plain glue variant that Seek
-uses on Android; it does not install or import `onnxruntime-node`. The optional
-`auto` and strict `webgpu` modes are a runtime experiment, not proof that a
-Termux or server environment can reproduce the plugin's browser WebGPU path.
+uses on Android; it does not install or import `onnxruntime-node`. The strict
+`webgpu` mode is the Chromium browser path, not a Node WebGPU approximation.
 Phone validation in Termux found no Node `navigator.gpu`, no published Android
 ARM64 Dawn binary, and no Android-compatible `onnxruntime-node` package. After
 installing the web runtime's declared common dependency, the browser-oriented
 WASM loader still reached a Node-incompatible `blob:` module URL. The next
-runtime experiment is therefore a Chromium sidecar that preserves Seek's
-iframe-compatible browser environment; this does not change the model/vector
-compatibility contract.
+runtime boundary is therefore the Chromium sidecar; it preserves Seek's
+browser-compatible runtime and does not change the model/vector compatibility
+contract.
 
 The real synchronized `system-vault` export is separate from this repository.
 Its current export contains 6,735 document records and 6,736 native locator
