@@ -1,4 +1,5 @@
 node_modules/
-/*.log
+# How the hell am I supposed to send log files back?
+# /*.log
 device-tests/results/
 device-tests/oneplus-6t/*.log
