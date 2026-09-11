@@ -29,6 +29,7 @@ type SeekWebRuntime = {
 
 let runtimePromise: Promise<SeekWebRuntime> | null = null;
 
+// ── SEEK SOURCE PORT: iframe-runner.ts / overrideGlueForWasm ──────────────
 // Seek's Android path uses the plain ORT-WASM glue. Transformers.js selects the
 // asyncify glue on non-WebKit environments, but that build does not carry the
 // CPU GatherBlockQuantized kernel required by this q4 model. Keep this copied
@@ -44,16 +45,25 @@ function overrideGlueForWasm(env: SeekWebRuntime['env']): string | null {
   return 'plain';
 }
 
+// ── MCP ADAPTER CODE: Node process boundary ───────────────────────────────
 // The plugin imports this web runtime inside an iframe. Node's package export
-// would choose transformers.node.mjs and onnxruntime-node instead, so import the
-// copied web build directly. Keep Node's process and filesystem globals visible:
-// the browser bundle uses them to resolve local model files and WASM modules.
+// would choose transformers.node.mjs and onnxruntime-node instead, so import
+// the copied web build while hiding process during module evaluation. That
+// makes its unchanged backend selection choose onnxruntime-web/WASM, matching
+// the plugin's Android path. Restore process immediately after import; the
+// imported module retains the selected backend.
 async function loadRuntime(): Promise<SeekWebRuntime> {
   if (!runtimePromise) {
     runtimePromise = (async () => {
-      const runtime = await import('../vendor/seek/runtime/transformers.web.js');
-      overrideGlueForWasm(runtime.env);
-      return runtime as unknown as SeekWebRuntime;
+      const nodeProcess = globalThis.process;
+      (globalThis as { process?: typeof process }).process = undefined;
+      try {
+        const runtime = await import('../vendor/seek/runtime/transformers.web.js');
+        overrideGlueForWasm(runtime.env);
+        return runtime as unknown as SeekWebRuntime;
+      } finally {
+        (globalThis as { process?: typeof process }).process = nodeProcess;
+      }
     })();
   }
   return runtimePromise;
@@ -75,31 +85,16 @@ export class SeekQueryEmbedder {
       dtype: ACTIVE_MODEL_SPEC.dtype,
       ...(ACTIVE_MODEL_SPEC.revision ? { revision: ACTIVE_MODEL_SPEC.revision } : {}),
     };
-    if (requested === 'cpu') {
-      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'cpu' });
-    }
     if (requested === 'wasm') {
       return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
-    }
-    if (requested === 'webgpu') {
-      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'webgpu' });
     }
     try {
       return await runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'webgpu' });
     } catch (error) {
-      try {
-        return await runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
-      } catch (wasmError) {
-        try {
-          return await runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'cpu' });
-        } catch (cpuError) {
-          throw new Error(
-            `embedding backends failed: webgpu=${error instanceof Error ? error.message : String(error)}; ` +
-            `wasm=${wasmError instanceof Error ? wasmError.message : String(wasmError)}; ` +
-            `cpu=${cpuError instanceof Error ? cpuError.message : String(cpuError)}`,
-          );
-        }
+      if (requested === 'webgpu') {
+        throw new Error(`WebGPU embedding backend failed: ${error instanceof Error ? error.message : String(error)}`);
       }
+      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
     }
   }
 
