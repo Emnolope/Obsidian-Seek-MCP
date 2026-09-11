@@ -1,9 +1,10 @@
 # Obsidian Seek MCP TODO
 
-This list reflects the current implementation, not the original project
-handoff. Complete the critical items in order.
+This list reflects the current working baseline, not the abandoned Chromium
+sidecar detour. The old sidecar branch is considered burned history and should
+not be treated as an active implementation target.
 
-## Next actions
+## Active work
 
 - [ ] `[critical]` Fix the Seek exporter to write `MCP Export/` beside the
   native sidecar selected by `sidecarIndexLocation` (`.obsidian/plugins/seek/index`
@@ -19,29 +20,30 @@ handoff. Complete the critical items in order.
   malformed JSON, unknown tools, and invalid arguments.
 - [ ] `[critical]` Bound search and fetch response sizes before relying on the
   server for large notes and PicoClaw context.
-- [x] `[critical]` Build the smallest Chromium sidecar boundary for query
-  embedding, preserving the copied Seek browser runtime and defining a
-  browser-to-Node vector boundary.
-- [x] `[critical]` Run the device diagnostics and inspect the flat/raw reports.
-  The reports proved Chromium launch, child readiness, and the initial CDP
-  boundary; they also exposed the self-message bug.
-- [x] `[critical]` Make and validate the smallest transport fix required by the
-  observed result. Commit `695d3d5` ignores outgoing page requests that were
-  being mistaken for child replies.
-- [ ] `[critical]` Add a browser-hosted WASM sidecar mode matching Seek's phone
-  path: q4, plain ORT glue, and a 384-value vector across CDP.
-- [ ] `[critical]` Run the browser-WASM device test and require dimension 384,
-  finite values, finite non-zero norm, and measured latency.
-- [ ] `[critical]` Benchmark MCP direct WASM, Seek browser WASM, and sidecar
-  browser WASM with the same model, text set, batching, warm/cold state, and
-  worker placement before attributing any speed gap to GPU versus CPU.
-- [ ] `[critical]` Reconcile from the documented history anchors before the
-  browser-WASM implementation: use `e1e8732` as the pre-sidecar core, inspect
-  `3e093b3` for the first sidecar boundary, exclude the debug-heavy sequence
-  beginning at `24eee41`, and retain only the isolated transport fix
-  `695d3d5` where it still applies.
+- [ ] `[important]` Group chunk hits by note and preserve the best-scoring
+  chunks per note.
+- [ ] `[important]` Report model, revision, dimensions, shard counts, and all
+  mismatch/invalid-record diagnostics in the health response.
+- [ ] `[important]` Detect Markdown changes since export generation.
+- [ ] `[important]` Handle Seek tombstones and mixed-device winner rules with
+  committed fixtures.
+- [ ] `[optional]` Add sign-bit candidate generation and reranking.
+- [ ] `[optional]` Reload a vault when its export generation changes.
+- [x] Add a CLI that calls the same `SeekIndex` library as MCP.
 
-## Current implementation already complete
+## Historical detour (burned)
+
+These items describe the Chromium sidecar branch and should be treated as
+warning markers only. They are not active requirements for the repo.
+
+- [x] Investigate Chromium launch and CDP handshake.
+- [x] Debug the self-message bug in the sidecar transport.
+- [x] Confirm strict WebGPU fails on the target phone.
+- [x] Observe the real plugin runtime: q4 WASM with plain ORT glue and a proxy
+  worker.
+- [x] Record the split point and recovery map in the handoff docs.
+
+## Baseline implementation already complete
 
 - [x] Read-only MCP stdio server.
 - [x] One stable tool set across arbitrary vault directories.
@@ -54,47 +56,12 @@ handoff. Complete the critical items in order.
 - [x] Stale document mappings are skipped and reported by `index_status`.
 - [x] Published MCP release `Obsidian-Vault-MCP-v4`.
 
-## Retrieval quality and operations
-
-- [ ] `[important]` Group chunk hits by note and preserve the best-scoring
-  chunks per note.
-- [ ] `[important]` Report model, revision, dimensions, shard counts, and all
-  mismatch/invalid-record diagnostics in the health response.
-- [ ] `[important]` Detect Markdown changes since export generation.
-- [ ] `[important]` Handle Seek tombstones and mixed-device winner rules with
-  committed fixtures.
-- [ ] `[optional]` Add sign-bit candidate generation and reranking.
-- [ ] `[optional]` Reload a vault when its export generation changes.
-- [x] Add a CLI that calls the same `SeekIndex` library as MCP.
-
-## Phone runtime findings
-
-- [x] Confirm Android/Termux Node lacks `navigator.gpu`.
-- [x] Confirm published Dawn Node WebGPU lacks an Android ARM64 binary.
-- [x] Confirm official `onnxruntime-node` rejects Android.
-- [x] Install the pinned web runtime's declared `onnxruntime-common` version.
-- [x] Confirm the browser-oriented WASM path fails on Node at `blob:` module
-  loading before producing an embedding.
-- [x] Choose Chromium sidecar IPC over a custom Android native build for the
-  experimental browser boundary.
-- [x] Confirm the phone's working Seek plugin backend is q4 WASM with plain
-  glue and a proxy worker; strict WebGPU is unavailable on that plugin host.
-- [ ] Port that browser-WASM execution mode into the sidecar before treating
-  phone query embedding as validated.
-
-The Chromium sidecar choice has now been implemented experimentally. Its CDP
-return boundary is corrected, but its strict WebGPU mode fails on the phone.
-Do not reopen the native-build question; implement and test the browser-WASM
-mode first. The earlier MCP-versus-Seek speed gap is not evidence that a GPU
-sidecar was needed; the plugin's report identifies its working phone path as
-CPU WASM.
-
 ## Compatibility maintenance
 
 - [x] `[critical]` Pin and record the Seek source commit used by compatibility
   code: `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`.
-- [ ] `[critical]` Compare sidecar, model, quantization, and IndexedDB changes
-  before every Seek update.
+- [ ] `[critical]` Compare model, quantization, and IndexedDB changes before
+  every Seek update.
 - [ ] `[critical]` Update `UPSTREAM.md`, `NOTICE.md`, fixtures, and format gates
   whenever a compatibility-affecting Seek change is ported.
 - [ ] `[critical]` Run MCP build/tests, Seek typecheck/tests, and fresh hidden
@@ -112,8 +79,7 @@ paired in the same directory:
 
 Update both in the same change. Preserve the largest recognizable Seek block
 first, adapt platform edges second, and trim only after numerical validation.
-The default backend is WASM; `SEEK_MCP_DEVICE=auto` attempts WebGPU with
-fallback, and `SEEK_MCP_DEVICE=webgpu` is strict.
+The default backend remains direct Wasm, not a Chromium sidecar branch.
 
 ## Commands
 
@@ -122,8 +88,6 @@ npm ci
 npm run build
 npm test
 git diff --check
-npm --prefix /workspaces/Obsidian-Seek run typecheck
-npm --prefix /workspaces/Obsidian-Seek test
 ```
 
 The MCP server is started with `npm start`. PicoClaw calls tools with

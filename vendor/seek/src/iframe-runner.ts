@@ -10,8 +10,8 @@
 //   - Model id is the onnx-community fused PTQ export, run at q4 (see
 //     embedder.ts header — the QAT workstream is killed).
 
-import type { Device, RequestedDevice, Dtype } from './types.ts';
-import { ACTIVE_MODEL_SPEC } from './model-registry.ts';
+import type { Device, RequestedDevice, Dtype } from './types';
+import { ACTIVE_MODEL_SPEC } from './model-registry';
 
 declare const __BUILD_TS__: string;
 
@@ -323,7 +323,7 @@ export class IframeRunner {
             // message listener bound above.
             this.iframe = window.document.createElement('iframe');
             this.iframe.id = IFRAME_ID;
-            this.iframe.classList.add('seek-hidden');
+            this.iframe.addClass('seek-hidden');
             // LOAD-BEARING: no `sandbox` attribute. A srcdoc iframe with no sandbox
             // inherits Obsidian's real origin (`capacitor://localhost` on iOS,
             // `app://obsidian.md` on desktop). That real origin is what lets the

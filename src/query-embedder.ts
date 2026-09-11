@@ -1,5 +1,4 @@
 import { prepareVector, requestedDevice, SEEK_MODEL, type SeekDevice } from './seek-compatibility.ts';
-import { ChromiumSidecar } from './chromium-sidecar.ts';
 
 // Compatibility boundary: vendor/seek/src/model-registry.ts is retained
 // byte-for-byte, but its Obsidian TypeScript imports are not NodeNext-resolvable.
@@ -72,7 +71,6 @@ async function loadRuntime(): Promise<SeekWebRuntime> {
 
 export class SeekQueryEmbedder {
   private pipelinePromise: Promise<FeatureExtractor> | null = null;
-  private chromium = new ChromiumSidecar();
 
   private load(): Promise<FeatureExtractor> {
     if (!this.pipelinePromise) {
@@ -104,7 +102,6 @@ export class SeekQueryEmbedder {
     if (typeof text !== 'string' || text.trim().length === 0) {
       throw new Error('queryText must be a non-empty string');
     }
-    if (requestedDevice() === 'webgpu') return this.chromium.embed(text);
     const extractor = await this.load();
     const output = await extractor(text, {
       pooling: SEEK_MODEL.pooling,

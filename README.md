@@ -9,9 +9,11 @@ the Seek Obsidian plugin. The companion exporter is in the Seek source checkout
 at `/workspaces/Obsidian-Seek`; Obsidian exposes it as **Seek: Export complete
 MCP index**.
 
-The current published MCP release is `Obsidian-Vault-MCP-v4`. The working tree
-also includes a read-only CLI for direct status, search, chunk, and note checks;
-the CLI is not part of that published release yet.
+The current active state is the restored pre-sidecar baseline. The Chromium
+sidecar and its debug-heavy branch history are burned historical detours and are
+not part of the supported runtime path. The working tree still includes a
+read-only CLI for direct status, search, chunk, and note checks; the CLI is not
+part of the published release yet.
 
 ## Run
 
@@ -38,19 +40,14 @@ implementation.
 
 The compatibility contract is documented in
 [`src/SEEK-COMPATIBILITY.md`](src/SEEK-COMPATIBILITY.md) and implemented by
-[`src/seek-compatibility.ts`](src/seek-compatibility.ts). The default query
-backend is WASM. Set `SEEK_MCP_DEVICE=auto` to attempt the optional WebGPU path
-and fall back to WASM, or set `SEEK_MCP_DEVICE=webgpu` to require the Chromium
-sidecar and fail instead of silently falling back. The sidecar launches the
-Chromium binary named by `SEEK_CHROMIUM_PATH`, serves the existing Seek browser
-child script, and is intended to return only the 384-value query vector over
-the DevTools Protocol. On the OnePlus 6T, the sidecar transport reaches
-ORT-Web, but strict q4 WebGPU fails with an invalid external Dawn instance.
-Seek's working plugin report shows that the phone uses q4 WASM with plain glue
-and a proxy worker; browser-hosted WASM is the next sidecar target.
-Chromium owns browser Transformers.js/ORT-Web execution; Node owns MCP
-transport, vault loading, and ranking. Backend choice changes execution
-environment and speed, not the model/vector-space contract.
+[`src/seek-compatibility.ts`](src/seek-compatibility.ts). The active backend is
+direct WASM; the older Chromium sidecar branch is historical and intentionally
+not the default path. If a browser-only prototype is ever reintroduced, it must
+be treated as a separate experimental branch and not as the normal runtime.
+
+The Node process remains responsible for MCP transport, vault loading, and
+ranking. Backend choice changes execution environment and speed, not the
+model/vector-space contract.
 
 The current Seek exporter writes `MCP Export/` under the hidden path
 unconditionally. The visible fallback is therefore a resolver capability, not

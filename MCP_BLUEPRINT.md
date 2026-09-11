@@ -26,22 +26,18 @@ fetch_note({ vaultDir, notePath })
 
 `semantic_search` accepts either ordinary text or exactly 384 numeric values.
 Text uses the pinned Seek-compatible Granite model through the copied
-Transformers.js web bundle. WASM is the default runtime path. The optional
-`SEEK_MCP_DEVICE=auto` mode attempts WebGPU and falls back to WASM;
-`SEEK_MCP_DEVICE=webgpu` requires WebGPU. These modes must preserve the same
-model, tokenizer, dtype, pooling, normalization, and output dimension. Browser
-WebGPU availability on the phone is not assumed by the server.
-Phone-side validation found that Termux Node has no `navigator.gpu`, published
-Dawn has no Android ARM64 binary, and the browser-oriented WASM path reaches a
-Node-incompatible `blob:` module URL. The experimental Chromium sidecar owns
-only query embedding and returns a 384-value vector across a narrow local
-boundary; the Node process retains vault loading, ranking, and MCP transport.
-The sidecar is merged into `main`, and its browser launch and corrected CDP
-request/reply path were observed on the OnePlus 6T. Strict WebGPU then reached
-ORT-Web but failed in q4 `GatherBlockQuantized` with an invalid external Dawn
-instance. The plugin report shows the phone's working backend is q4 WASM with
-plain glue and a proxy worker, so browser-hosted WASM is the next sidecar mode.
-The default result limit is 10 and the allowed range is 1 through 100.
+Transformers.js web bundle. The active baseline is direct WASM execution; the
+older Chromium sidecar path is a burned historical detour and is not the
+supported normal runtime. Any future browser-side experiment must be treated as
+an isolated prototype and validated before it is considered for reuse.
+
+The supported contract preserves the same model, tokenizer, dtype, pooling,
+normalization, and output dimension across runtime choices. Browser WebGPU
+availability on the phone is not assumed by the server. The phone-side evidence
+shows that Node has no `navigator.gpu`, published Dawn has no Android ARM64
+binary, and the real plugin path is q4 WASM with plain glue and a proxy worker.
+The Node process keeps vault loading, ranking, and MCP transport. The default
+result limit is 10 and the allowed range is 1 through 100.
 
 ## Location resolution
 

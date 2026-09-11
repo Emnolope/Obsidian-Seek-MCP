@@ -47,18 +47,16 @@ was working through q4 WASM, plain ORT glue, and a proxy worker.
 
 The old comparison therefore mixed hosts, worker placement, runtime loading,
 cold versus warm state, and likely batching. It was not an apples-to-apples GPU
-versus CPU benchmark. The MCP core was not invalidated by being slower, and the
-Chromium sidecar should not be treated as a replacement for it. The sidecar is
-now an optional browser-runtime compatibility boundary whose next useful mode is
-Seek-matched WASM. Strict WebGPU remains an experimental opt-in, not the default
-performance strategy.
+versus CPU benchmark. The MCP core was not invalidated by being slower. The
+Chromium sidecar branch was a later detour, not the baseline path, and it should
+not be treated as a replacement for the working WASM implementation.
 
 The recovery anchors are recorded in `HANDOFF.md` and `INVESTIGATION.md`:
 `e1e8732` is the last pre-sidecar mainline state, `3e093b3` introduces the
 strict-WebGPU sidecar detour, `24eee41` begins the debug-heavy expansion, and
-`695d3d5` is the isolated transport fix worth preserving. The next agent
-should reconcile code from those commits rather than treat the latest
-debug-heavy tree as the only source of truth.
+`695d3d5` is the isolated transport fix worth preserving only as historical
+context. The active baseline is the earlier WASM path; the sidecar detour is a
+burned branch and should not be revived as a supported runtime.
 
 ## Current architecture
 

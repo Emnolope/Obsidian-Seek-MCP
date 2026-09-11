@@ -8,9 +8,9 @@ This file records verified implementation facts. The rationale belongs in
 ## Repository versions
 
 - MCP repository: `/workspaces/Obsidian-Seek-MCP`
-- MCP commit/release: `main` includes the experimental sidecar and the
-  self-message fix `695d3d5`; `Obsidian-Vault-MCP-v4` remains the published
-  baseline
+- Active baseline: the restored pre-sidecar WASM implementation; the Chromium
+  sidecar branch is historical detour data only
+- Published baseline: `Obsidian-Vault-MCP-v4`
 - Seek checkout: `/workspaces/Obsidian-Seek`
 - Seek plugin commit: `06b837126f66d54db97ef8785a7c95750e48c311`
 - Compatibility source commit: `1f0a9b0ce3854f82cc746e02f9cd27bcdbc30acd`
@@ -114,23 +114,22 @@ browser-WASM comparison; the sidecar remains optional.
 
 ## Commit recovery map
 
-The repository history provides explicit recovery points:
+The repository history provides explicit recovery points, but the sidecar branch
+is now treated as burned history rather than an active design target.
 
 | Commit | Meaning |
 | --- | --- |
 | `74f2853` | Initial MCP Seek-compatible query-WASM port. |
 | `2978012` | Clean compatibility/query milestone before later device and sidecar work. |
-| `e1e8732` | Exact parent of the first sidecar commit; last mainline state before `src/chromium-sidecar.ts` entered the branch. |
+| `e1e8732` | Last pre-sidecar mainline state. |
 | `3e093b3` | First Chromium WebGPU sidecar probe and beginning of the GPU detour. |
 | `24eee41` | Beginning of heavy sidecar/debug instrumentation. |
 | `9750e26` | Large diagnostic expansion in `src/chromium-sidecar.ts`. |
-| `695d3d5` | Isolated fix preventing outgoing page RPCs from being read as replies. |
+| `695d3d5` | Isolated transport fix that remains historical context only. |
 
-Recovery should start from `e1e8732` for the core, then selectively reapply the
-sidecar boundary and `695d3d5` if browser hosting is still desired. Do not
-cherry-pick the debug expansion commits as a group. Reconcile
-`query-embedder.ts` against the pre-sidecar version and reintroduce
-browser-hosted WASM deliberately.
+The active baseline is the pre-sidecar core. Any browser-side experiment must be
+reintroduced deliberately in a separate prototype path, not as the working repo
+state. The debug-heavy sidecar commits are not a supported implementation path.
 
 ## Validation baseline
 
