@@ -17,15 +17,33 @@ type FeatureExtractor = (text: string, options: Record<string, unknown>) => Prom
 type SeekWebRuntime = {
   pipeline: (task: string, model: string, options: Record<string, unknown>) => Promise<FeatureExtractor>;
   env: {
+    useWasmCache?: boolean;
     backends: {
       onnx?: {
         wasm?: {
+          proxy?: boolean;
           wasmPaths?: { mjs?: string; wasm?: string };
         };
       };
     };
   };
 };
+
+export function configureNodeRuntimeForNode(runtime: SeekWebRuntime): SeekWebRuntime {
+  const wasmPaths = runtime.env.backends.onnx?.wasm?.wasmPaths;
+  if (wasmPaths) {
+    const wasmBase = new URL('../node_modules/onnxruntime-web/dist/', import.meta.url);
+    const plainMjs = new URL('ort-wasm-simd-threaded.mjs', wasmBase).href;
+    const plainWasm = new URL('ort-wasm-simd-threaded.wasm', wasmBase).href;
+    wasmPaths.mjs = plainMjs;
+    wasmPaths.wasm = plainWasm;
+  }
+  runtime.env.useWasmCache = false;
+  if (runtime.env.backends.onnx?.wasm) {
+    runtime.env.backends.onnx.wasm.proxy = false;
+  }
+  return runtime;
+}
 
 let runtimePromise: Promise<SeekWebRuntime> | null = null;
 
@@ -60,7 +78,7 @@ async function loadRuntime(): Promise<SeekWebRuntime> {
       try {
         const runtime = await import('../vendor/seek/runtime/transformers.web.js');
         overrideGlueForWasm(runtime.env);
-        return runtime as unknown as SeekWebRuntime;
+        return configureNodeRuntimeForNode(runtime as unknown as SeekWebRuntime);
       } finally {
         (globalThis as { process?: typeof process }).process = nodeProcess;
       }
