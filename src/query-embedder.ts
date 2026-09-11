@@ -75,8 +75,8 @@ export class SeekQueryEmbedder {
       dtype: ACTIVE_MODEL_SPEC.dtype,
       ...(ACTIVE_MODEL_SPEC.revision ? { revision: ACTIVE_MODEL_SPEC.revision } : {}),
     };
-    if (requested === 'wasm') {
-      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
+    if (requested === 'cpu') {
+      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'cpu' });
     }
     try {
       return await runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'webgpu' });
@@ -84,7 +84,7 @@ export class SeekQueryEmbedder {
       if (requested === 'webgpu') {
         throw new Error(`WebGPU embedding backend failed: ${error instanceof Error ? error.message : String(error)}`);
       }
-      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
+      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'cpu' });
     }
   }
 
