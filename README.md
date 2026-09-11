@@ -15,6 +15,11 @@ not part of the supported runtime path. The working tree still includes a
 read-only CLI for direct status, search, chunk, and note checks; the CLI is not
 part of the published release yet.
 
+The current `main` commit is `48e12cf`, a current-tree recovery that restores
+the executable/dependency core files to `e1e8732`. The newer Markdown and shell
+device-test history remains intentionally, but the active code path is the
+restored WASM core.
+
 ## Run
 
 The server is a single multi-vault MCP process. It does not bind to one vault
@@ -143,15 +148,17 @@ vendored Seek-compatible Transformers.js web bundle and may download it from
 the model host. Later queries reuse the in-process pipeline. The default MCP
 adapter selects the same WASM execution path and plain glue variant that Seek
 uses on Android; it does not install or import `onnxruntime-node`. The strict
-`webgpu` mode is the Chromium browser path, not a Node WebGPU approximation.
+`webgpu` mode is an explicit direct runtime request and is not the phone's
+validated default. The Chromium sidecar path is historical and is not wired
+into the active adapter.
 Phone validation in Termux found no Node `navigator.gpu`, no published Android
 ARM64 Dawn binary, and no Android-compatible `onnxruntime-node` package. After
 installing the web runtime's declared common dependency, the browser-oriented
-WASM loader still reached a Node-incompatible `blob:` module URL. The next
-runtime boundary is therefore the Chromium sidecar for the phone's browser-WASM
-path; it preserves Seek's browser-compatible runtime and does not change the
-model/vector compatibility contract. Strict WebGPU remains an explicit,
-experimental path rather than the phone default.
+WASM loader still reached a Node-incompatible `blob:` module URL. The historical
+sidecar remains a separate browser-WASM experiment; it preserves Seek's
+browser-compatible runtime but is not part of the active adapter and does not
+change the model/vector compatibility contract. Strict WebGPU remains an
+explicit, experimental path rather than the phone default.
 
 The real synchronized `system-vault` export is separate from this repository.
 Its current export contains 6,735 document records and 6,736 native locator

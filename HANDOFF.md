@@ -34,6 +34,22 @@ The active baseline is the earlier MCP core that uses the Seek-compatible WASM
 query path and the read-only vault/index loader. The repository is now presenting
 that working state again, not the experimental browser GPU path.
 
+## Recovery record
+
+On 2026-09-11, `main` was brought to the then-current `origin/main`, and only
+the executable/dependency core files were restored to their exact
+`e1e8732` contents:
+
+- `package.json`
+- `package-lock.json`
+- `src/query-embedder.ts`
+- `src/seek-compatibility.ts`
+
+Current commit `48e12cf` (`RESTORE CORE FILES FROM e1e8732`) is pushed to
+`origin/main`. Current Markdown documentation and shell device tests were kept
+from the newer tree. `npm run build`, `npm test` (2/2), and `git diff --check`
+passed before the push.
+
 ## Postmortem correction
 
 The original MCP core was working before the Chromium sidecar experiment. The
@@ -71,7 +87,8 @@ burned. They stay in history only as a cautionary trail, not as active design.
 ## Active engineering rules
 
 - Default runtime: direct Seek-compatible WASM, not Chromium WebGPU.
-- Browser sidecar: optional prototype only; never the default.
+- Browser sidecar: historical prototype only; it is not present in the active
+  runtime and must never be made the default without a deliberate review.
 - Node owns MCP transport, vault access, index loading, and ranking.
 - Chromium/browser runtime owns optional browser execution only when explicitly
   prototyped and separately validated.

@@ -1,6 +1,6 @@
 # Seek/MCP Technical Investigation
 
-Last verified: 2026-09-10
+Last verified: 2026-09-11
 
 This file records verified implementation facts. The rationale belongs in
 `CONTEXT.md`; ordered work belongs in `TODO.md`.
@@ -8,6 +8,7 @@ This file records verified implementation facts. The rationale belongs in
 ## Repository versions
 
 - MCP repository: `/workspaces/Obsidian-Seek-MCP`
+- Current repository commit: `48e12cf` (`RESTORE CORE FILES FROM e1e8732`), pushed to `origin/main`
 - Active baseline: the restored pre-sidecar WASM implementation; the Chromium
   sidecar branch is historical detour data only
 - Published baseline: `Obsidian-Vault-MCP-v4`

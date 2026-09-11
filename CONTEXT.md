@@ -51,6 +51,12 @@ versus CPU benchmark. The MCP core was not invalidated by being slower. The
 Chromium sidecar branch was a later detour, not the baseline path, and it should
 not be treated as a replacement for the working WASM implementation.
 
+The current repository state is a deliberate hybrid recovery: pushed commit
+`48e12cf` is based on current `main`, while `package.json`, `package-lock.json`,
+`src/query-embedder.ts`, and `src/seek-compatibility.ts` match `e1e8732`.
+Newer Markdown and shell-test history remains for investigation and evidence;
+it does not change the active executable core.
+
 The recovery anchors are recorded in `HANDOFF.md` and `INVESTIGATION.md`:
 `e1e8732` is the last pre-sidecar mainline state, `3e093b3` introduces the
 strict-WebGPU sidecar detour, `24eee41` begins the debug-heavy expansion, and
@@ -138,7 +144,9 @@ loader and index APIs for status, search, chunk, and note checks. Note-level
 grouping, response bounds, automatic reload, and tombstone handling are not
 implemented yet. The query backend defaults to WASM; `SEEK_MCP_DEVICE=auto` may
 attempt WebGPU and fall back to WASM, while `SEEK_MCP_DEVICE=webgpu` is strict
-and fails when WebGPU cannot initialize. The phone's actual WebGPU capability
+and fails when WebGPU cannot initialize. The restored core does this directly
+through the vendored web runtime; the historical sidecar is not wired into the
+active adapter. The phone's actual WebGPU capability
 has now been tested from Termux. The phone is Android arm64 with Node 26,
 seven reported CPUs, SharedArrayBuffer, and Atomics, but Node exposes neither
 `navigator.gpu` nor a global `GPU`. The published `webgpu` package installs but
@@ -148,12 +156,13 @@ fails because it has no `android-arm64/dawn.node` binary. The official
 The phone-side tests also corrected the declared `onnxruntime-common` version
 and installed it successfully. The real Seek-compatible web/WASM embedder still
 failed because the browser-oriented runtime produced a `blob:` module URL that
-Node's ESM loader does not support. The experimental Chromium sidecar supplies
+Node's ESM loader does not support. The experimental Chromium sidecar supplied
 the browser environment expected by the copied web stack, and its launch, child
-handshake, and CDP request/reply path were reached on the OnePlus 6T. The
-sidecar's self-message bug was fixed, after which strict WebGPU reached ORT-Web
-but failed during q4 `GatherBlockQuantized` execution with an invalid external
-WebGPU instance. The plugin's own report shows the phone has no usable WebGPU
-adapter and succeeds through q4 WASM with plain ORT glue and a proxy worker. A
-browser-hosted WASM sidecar is the next runtime target. A custom Android native
-build is not yet justified by evidence.
+handshake, and CDP request/reply path were reached on the OnePlus 6T. That
+sidecar is historical evidence, not the active runtime. Its self-message bug
+was fixed, after which strict WebGPU reached ORT-Web but failed during q4
+`GatherBlockQuantized` execution with an invalid external WebGPU instance. The
+plugin's own report shows the phone has no usable WebGPU adapter and succeeds
+through q4 WASM with plain ORT glue and a proxy worker. A browser-hosted WASM
+sidecar remains a separate experiment, not the current runtime target. A custom
+Android native build is not yet justified by evidence.

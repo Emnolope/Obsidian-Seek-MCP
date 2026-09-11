@@ -15,6 +15,11 @@ PicoClaw -> MCP stdio -> tool(vaultDir, arguments)
 The vault directory is the only storage path exposed to the agent. The server
 owns the knowledge of Seek's two supported locations.
 
+The active executable core is the direct Seek-compatible WASM path restored from
+`e1e8732` in pushed commit `48e12cf`. Later Chromium sidecar and automatic
+backend-detour work remains historical documentation and is not part of this
+runtime contract.
+
 ## Tool contract
 
 ```text

@@ -33,6 +33,11 @@ plugin-side exporter lives in the separate
 Seek checkout and currently follows plugin commit
 `06b837126f66d54db97ef8785a7c95750e48c311`.
 
+The current pushed recovery commit is `48e12cf`, which restores the executable
+and dependency core files to `e1e8732`. The later Chromium sidecar and backend
+detour remain historical; their documentation and shell probes do not make
+those runtime paths active.
+
 When compatibility code changes, keep upstream-derived code and MCP adapter
 code visibly distinct. Preserve upstream naming, layout, ordering, and control
 flow; isolate only necessary runtime substitutions; and identify the original

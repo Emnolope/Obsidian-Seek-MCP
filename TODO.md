@@ -4,6 +4,13 @@ This list reflects the current working baseline, not the abandoned Chromium
 sidecar detour. The old sidecar branch is considered burned history and should
 not be treated as an active implementation target.
 
+## Current recovery state
+
+The current `main` commit is `48e12cf`, pushed to `origin/main`. It keeps the
+newer documentation and shell probes while restoring `package.json`,
+`package-lock.json`, `src/query-embedder.ts`, and `src/seek-compatibility.ts`
+to `e1e8732`. The build, two-test suite, and diff check passed before the push.
+
 ## Active work
 
 - [ ] `[critical]` Fix the Seek exporter to write `MCP Export/` beside the
