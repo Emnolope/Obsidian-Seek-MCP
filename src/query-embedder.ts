@@ -78,13 +78,28 @@ export class SeekQueryEmbedder {
     if (requested === 'cpu') {
       return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'cpu' });
     }
+    if (requested === 'wasm') {
+      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
+    }
+    if (requested === 'webgpu') {
+      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'webgpu' });
+    }
     try {
       return await runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'webgpu' });
     } catch (error) {
-      if (requested === 'webgpu') {
-        throw new Error(`WebGPU embedding backend failed: ${error instanceof Error ? error.message : String(error)}`);
+      try {
+        return await runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'wasm' });
+      } catch (wasmError) {
+        try {
+          return await runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'cpu' });
+        } catch (cpuError) {
+          throw new Error(
+            `embedding backends failed: webgpu=${error instanceof Error ? error.message : String(error)}; ` +
+            `wasm=${wasmError instanceof Error ? wasmError.message : String(wasmError)}; ` +
+            `cpu=${cpuError instanceof Error ? cpuError.message : String(cpuError)}`,
+          );
+        }
       }
-      return runtime.pipeline('feature-extraction', ACTIVE_MODEL_SPEC.repo, { ...options, device: 'cpu' });
     }
   }
 

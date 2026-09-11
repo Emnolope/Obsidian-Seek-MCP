@@ -12,12 +12,12 @@ export const SEEK_MODEL = {
   maxLength: 128,
 };
 
-export type SeekDevice = 'auto' | 'cpu' | 'webgpu';
+export type SeekDevice = 'auto' | 'wasm' | 'cpu' | 'webgpu';
 
 export function requestedDevice(): SeekDevice {
   const value = process.env.SEEK_MCP_DEVICE;
-  if (value === 'auto' || value === 'cpu' || value === 'webgpu') return value;
-  return 'cpu';
+  if (value === 'auto' || value === 'wasm' || value === 'cpu' || value === 'webgpu') return value;
+  return 'auto';
 }
 
 export function hasWebGpu(): boolean {
