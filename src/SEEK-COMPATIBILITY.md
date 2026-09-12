@@ -40,12 +40,6 @@ names, ordering, comments, and control flow. Adapt only platform boundaries:
 Do not optimize for fewer copied lines. Optimize for a future maintainer being
 able to replace the copied block mechanically.
 
-## Current recovery note
-
-The active code is the direct runtime restored from `e1e8732` in pushed commit
-`48e12cf`. The Chromium sidecar and later backend-detour behavior are historical
-and are not part of the active compatibility adapter.
-
 ## Reverse-engineering procedure
 
 For each Seek update, trace the path in this order:
@@ -71,20 +65,14 @@ inputs are accounted for.
 ## Backend policy
 
 The MCP implementation defaults to WASM because it runs in plain Node and does
-not require a browser when the runtime can load. The browser-hosted WASM path is
-the required Android/Termux fallback because Node's browser runtime can produce
-a `blob:` module URL that Node's ESM loader rejects. The restored core keeps
-backend selection in the direct runtime; the historical Chromium sidecar is not
-wired into the active adapter. The backend policy is implemented in
+not require a browser. The backend policy is implemented in
 `src/seek-compatibility.ts` and consumed by `src/query-embedder.ts`:
 
-- `SEEK_MCP_DEVICE=wasm` selects the portable CPU/WASM path. On the phone,
-  browser-hosted WASM must use Seek's plain ORT glue; a sidecar implementation
-  of this mode is pending.
+- `SEEK_MCP_DEVICE=wasm` selects the portable CPU/WASM path.
 - `SEEK_MCP_DEVICE=auto` attempts WebGPU and falls back to WASM if pipeline
    creation fails.
-- `SEEK_MCP_DEVICE=webgpu` requests WebGPU directly and fails if the pinned
-   pipeline cannot initialize; it never silently changes the requested backend.
+- `SEEK_MCP_DEVICE=webgpu` attempts WebGPU and fails if pipeline creation
+   fails; it never silently changes the requested backend.
 
 The default for an unset or invalid value is `wasm`. Merely exposing
 `navigator.gpu` is not proof of a usable backend; pipeline creation is the
@@ -92,15 +80,12 @@ discriminating capability check.
 
 The plugin's browser path adds iframe isolation, WebGPU adapter probing, shader
 warmup, device-loss recovery, and mobile memory policy. Those are runtime
-adaptations, not part of the vector contract. The historical Chromium sidecar
-reused the copied Seek child runtime, but is not part of the active
-implementation. Phone-side
+adaptations, not part of the vector contract. A future browser sidecar may
+reuse the copied Seek child runtime, but it must remain optional. Phone-side
 Termux tests found no Node `navigator.gpu`, no published Android Dawn binary,
 and a Node-incompatible `blob:` module URL in the browser-oriented WASM path.
-The plugin's own report then showed no usable WebGPU adapter and a working q4
-WASM path with plain glue and a proxy worker. These findings justify a separate
-browser-side experiment, but do not alter the model, tokenizer, pooling,
-normalization, dtype, or output-dimension contract.
+Those findings justify a sidecar boundary for execution, but do not alter the
+model, tokenizer, pooling, normalization, dtype, or output-dimension contract.
 
 ## Validation commands
 

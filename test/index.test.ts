@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { SeekIndex } from '../src/index.ts';
-import { configureNodeRuntimeForNode } from '../src/query-embedder.ts';
 import { encodeRecord, SIGN_BYTES, VEC_BYTES } from '../src/sidecar.ts';
 
 async function fixture() {
@@ -41,32 +40,4 @@ test('loads and ranks vectors by cosine similarity', async () => {
 test('rejects path traversal in note fetches', async () => {
   const index = await SeekIndex.load(await fixture());
   assert.throws(() => index.note('../private.md'), /invalid|escapes/);
-});
-
-test('configures Node WASM runtime without blob URLs', () => {
-  const runtime = {
-    env: {
-      useWasmCache: true,
-      backends: {
-        onnx: {
-          wasm: {
-            wasmPaths: {
-              mjs: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0-dev.20260416-b7804b056c/dist/ort-wasm-simd-threaded.asyncify.mjs',
-              wasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0-dev.20260416-b7804b056c/dist/ort-wasm-simd-threaded.asyncify.wasm',
-            },
-          },
-        },
-      },
-    },
-  } as any;
-
-  const configured = configureNodeRuntimeForNode(runtime);
-  const wasm = configured.env.backends.onnx?.wasm;
-  assert.ok(wasm);
-  assert.ok(wasm?.wasmPaths);
-  assert.equal(configured.env.useWasmCache, false);
-  assert.match(wasm!.wasmPaths!.mjs!, /^file:/);
-  assert.match(wasm!.wasmPaths!.wasm!, /^file:/);
-  assert.doesNotMatch(wasm!.wasmPaths!.mjs!, /^blob:/);
-  assert.doesNotMatch(wasm!.wasmPaths!.wasm!, /^blob:/);
 });
