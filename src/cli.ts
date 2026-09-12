@@ -1,6 +1,8 @@
 import { SeekQueryEmbedder } from './query-embedder.ts';
 import { loadVaultIndex } from './vault.ts';
 
+const queryEmbedder = new SeekQueryEmbedder();
+
 const usage = `Usage:
   seek-mcp status <vaultDir> [--json]
   seek-mcp search <vaultDir> <query> [--top-k N] [--path-prefix PREFIX] [--json]
@@ -101,7 +103,7 @@ async function run(args: Arguments): Promise<void> {
     const queryVector = args.options.get('vector') ? parseVector(args.options.get('vector')!) : undefined;
     const queryText = queryVector ? undefined : [value, ...args.positional.slice(1)].join(' ');
     if (!queryVector && !queryText) throw new Error('search requires a query or --vector');
-    const vector = queryVector ?? Array.from(await new SeekQueryEmbedder().embed(queryText!));
+    const vector = queryVector ?? Array.from(await queryEmbedder.embed(queryText!));
     const hits = index.search(vector, topK, args.options.get('path-prefix'));
     print(args.json ? hits : hits.map((hit, hitIndex) => `#${hitIndex + 1} ${hit.score.toFixed(4)}\n${formatDocument(hit)}`).join('\n\n'), args.json);
     return;
@@ -120,7 +122,9 @@ async function run(args: Arguments): Promise<void> {
 }
 
 const args = parseArguments(process.argv);
-run(args).catch(error => {
+  run(args).catch(error => {
   process.stderr.write(`error: ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 1;
+}).finally(async () => {
+  await queryEmbedder.close();
 });
