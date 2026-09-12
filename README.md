@@ -124,6 +124,7 @@ scripted checks:
 
 ```sh
 npm run cli -- status /path/to/vault
+npm run cli -- embed "meeting notes about embeddings" --json
 npm run cli -- search /path/to/vault "meeting notes about embeddings" --top-k 5
 npm run cli -- chunk /path/to/vault CHUNK_ID
 npm run cli -- note /path/to/vault Projects/example.md
@@ -132,7 +133,8 @@ npm run cli -- note /path/to/vault Projects/example.md
 Add `--json` to any command for machine-readable output. Search also accepts a
 precomputed vector with `--vector`; it must contain 384 comma-separated values
 or a JSON array. The CLI uses the same hidden-then-visible vault resolution as
-the MCP server and never writes to the vault.
+the MCP server and never writes to the vault. `embed` outputs the query vector
+directly, as comma-separated values by default or a JSON array with `--json`.
 
 ## Current loader behavior
 

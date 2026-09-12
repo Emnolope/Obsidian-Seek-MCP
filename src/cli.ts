@@ -5,6 +5,7 @@ const queryEmbedder = new SeekQueryEmbedder();
 
 const usage = `Usage:
   seek-mcp status <vaultDir> [--json]
+  seek-mcp embed <query> [--json]
   seek-mcp search <vaultDir> <query> [--top-k N] [--path-prefix PREFIX] [--json]
   seek-mcp search <vaultDir> --vector <comma-separated values> [--top-k N] [--path-prefix PREFIX] [--json]
   seek-mcp chunk <vaultDir> <chunkId> [--json]
@@ -88,6 +89,13 @@ function formatDocument(document: { title: string; notePath: string; content: st
 async function run(args: Arguments): Promise<void> {
   if (args.command === 'help' || args.command === '--help' || args.command === '-h') {
     print(usage.trimEnd(), false);
+    return;
+  }
+  if (args.command === 'embed') {
+    const query = args.positional.join(' ');
+    if (!query.trim()) throw new Error(`missing argument for embed\n\n${usage}`);
+    const vector = Array.from(await queryEmbedder.embed(query));
+    print(args.json ? vector : vector.join(','), args.json);
     return;
   }
   const minimumPositionals = args.command === 'status' || (args.command === 'search' && args.options.has('vector')) ? 1 : 2;
