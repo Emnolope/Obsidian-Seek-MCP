@@ -9,16 +9,15 @@ the Seek Obsidian plugin. The companion exporter is in the Seek source checkout
 at `/workspaces/Obsidian-Seek`; Obsidian exposes it as **Seek: Export complete
 MCP index**.
 
-The current active state is the restored pre-sidecar baseline. The Chromium
-sidecar and its debug-heavy branch history are burned historical detours and are
-not part of the supported runtime path. The working tree still includes a
-read-only CLI for direct status, search, chunk, and note checks; the CLI is not
-part of the published release yet.
+The current active state uses a Chromium browser-WASM sidecar for natural-
+language query embedding, with Node retaining vault loading and ranking. The
+sidecar is required on Android because Node cannot import the browser runtime's
+`blob:` module URL. The working tree includes a read-only CLI for direct status,
+search, chunk, and note checks.
 
-The current `main` commit is `48e12cf`, a current-tree recovery that restores
-the executable/dependency core files to `e1e8732`. The newer Markdown and shell
-device-test history remains intentionally, but the active code path is the
-restored WASM core.
+The browser-WASM path was integrated in `bc0bcd3`, the vendored runtime shim was
+added in `a940b91`, and the end-to-end phone probe is `b62c070`. The phone
+validated a finite 384-dimensional query vector and ranked real vault notes.
 
 ## Run
 
@@ -28,6 +27,13 @@ at startup. Each tool call supplies a `vaultDir` pointing to an Obsidian vault:
 ```sh
 npm install
 npm start
+```
+
+On Android/Termux, point the adapter at the installed Chromium binary before
+starting the server or running a text search:
+
+```sh
+export SEEK_CHROMIUM_PATH=/data/data/com.termux/files/usr/bin/chromium-browser
 ```
 
 It exposes `index_status`, `semantic_search`, `fetch_chunk`, and `fetch_note`
@@ -46,9 +52,8 @@ implementation.
 The compatibility contract is documented in
 [`src/SEEK-COMPATIBILITY.md`](src/SEEK-COMPATIBILITY.md) and implemented by
 [`src/seek-compatibility.ts`](src/seek-compatibility.ts). The active backend is
-direct WASM; the older Chromium sidecar branch is historical and intentionally
-not the default path. If a browser-only prototype is ever reintroduced, it must
-be treated as a separate experimental branch and not as the normal runtime.
+browser-hosted WASM through Chromium on Android; direct Node execution remains
+a diagnostic path and cannot load the browser runtime's `blob:` module.
 
 The Node process remains responsible for MCP transport, vault loading, and
 ranking. Backend choice changes execution environment and speed, not the
@@ -85,20 +90,21 @@ second time.
 The server is intentionally read-only. It does not edit notes, run Git, or
 modify Seek's index.
 
-The MCP core and index/ranking path are independent of the experimental
-Chromium sidecar. Earlier speed comparisons showed MCP query embedding at about
-one-half to one-quarter of the plugin's apparent speed, but they did not compare
-equivalent execution environments. Seek's phone report shows the plugin was
-using CPU WASM, not GPU WebGPU: q4 with plain ORT glue and a proxy worker. Do
-not infer GPU acceleration from the speed gap or make the sidecar a required
-part of the server. The next performance comparison must hold model, text,
-batching, warm/cold state, worker placement, and runtime constant.
+The MCP core and index/ranking path remain Node-owned, while Android query
+embedding runs in the Chromium sidecar. Earlier speed comparisons showed MCP
+query embedding at about one-half to one-quarter of the plugin's apparent
+speed, but the plugin had a preloaded model and warm runtime. The phone's
+validated plugin path is CPU q4 WASM with plain ORT glue and a proxy worker,
+not GPU WebGPU. The first sidecar query took about 57 seconds because it was
+cold; a resident MCP server can reuse the loaded model.
 
 ## Device tests
 
 Phone-specific diagnostics live under `device-tests/<device>/`. The current
 suite is `device-tests/oneplus-6t/`; run it from the repository root on the
-matching Termux device. The scripts currently default generated logs to the
+matching Termux device. `test-5.5.sh` is the end-to-end Chromium WASM probe:
+it generates a 384-value query vector and uses it to rank the real vault. The
+scripts currently default generated logs to the
 repository root unless `SEEK_PROBE_OUT` is set; keep new logs out of commits.
 `test-6.sh` serializes a flat report in the browser before crossing CDP, while
 `test-7.sh` captures raw browser console and exception events. The transport
@@ -144,21 +150,18 @@ published together. If they are split across generations, the loader treats the
 result as stale or incomplete instead of pretending it is a valid atomic export.
 
 The first natural-language query loads the pinned Granite model through the
-vendored Seek-compatible Transformers.js web bundle and may download it from
-the model host. Later queries reuse the in-process pipeline. The default MCP
-adapter selects the same WASM execution path and plain glue variant that Seek
-uses on Android; it does not install or import `onnxruntime-node`. The strict
-`webgpu` mode is an explicit direct runtime request and is not the phone's
-validated default. The Chromium sidecar path is historical and is not wired
-into the active adapter.
+vendored Seek-compatible Transformers.js web bundle in Chromium and may
+download it from the model host. Later queries reuse the sidecar's in-process
+pipeline. The adapter selects the same q4 WASM/plain-glue path that Seek uses
+on Android; it does not install or import `onnxruntime-node`. Strict `webgpu`
+remains an explicit experimental request and is not the phone's validated path.
 Phone validation in Termux found no Node `navigator.gpu`, no published Android
 ARM64 Dawn binary, and no Android-compatible `onnxruntime-node` package. After
 installing the web runtime's declared common dependency, the browser-oriented
-WASM loader still reached a Node-incompatible `blob:` module URL. The historical
-sidecar remains a separate browser-WASM experiment; it preserves Seek's
-browser-compatible runtime but is not part of the active adapter and does not
-change the model/vector compatibility contract. Strict WebGPU remains an
-explicit, experimental path rather than the phone default.
+WASM loader still reached a Node-incompatible `blob:` module URL. The Chromium
+sidecar supplies the browser-compatible runtime and does not change the
+model/vector compatibility contract. Strict WebGPU remains an explicit,
+experimental path rather than the phone default.
 
 The real synchronized `system-vault` export is separate from this repository.
 Its current export contains 6,735 document records and 6,736 native locator

@@ -25,14 +25,16 @@ another change. Do not declare a hardware path working from container tests.
 
 ## Current state
 
-This repository is intentionally restored to the working pre-sidecar WASM base.
-The Chromium sidecar, the debug-heavy probe commits, and the later GPU detour are
-all historical detours, not the active design. Treat the sidecar branch as
-burned: it may be studied for lessons, but it is not a supported runtime path.
+The repository now uses the working browser-WASM sidecar for Android query
+embedding. Node owns MCP transport, vault/index loading, and ranking; Chromium
+owns the browser Transformers.js and ORT-WASM environment. The strict WebGPU
+detour and debug-heavy probes remain historical, but the sidecar itself is
+supported because the phone produced a valid vector and ranked vault results.
 
-The active baseline is the earlier MCP core that uses the Seek-compatible WASM
-query path and the read-only vault/index loader. The repository is now presenting
-that working state again, not the experimental browser GPU path.
+The first query is intentionally cold: Chromium startup, model loading,
+tokenization setup, and WASM initialization took about 57 seconds on the phone.
+Keep the sidecar resident in the MCP server so later queries reuse the loaded
+pipeline, matching the plugin's preloaded behavior.
 
 ## Recovery record
 
@@ -45,10 +47,10 @@ the executable/dependency core files were restored to their exact
 - `src/query-embedder.ts`
 - `src/seek-compatibility.ts`
 
-Current commit `48e12cf` (`RESTORE CORE FILES FROM e1e8732`) is pushed to
-`origin/main`. Current Markdown documentation and shell device tests were kept
-from the newer tree. `npm run build`, `npm test` (2/2), and `git diff --check`
-passed before the push.
+The browser-WASM integration is in `bc0bcd3`, vendor fixes are in `d775c30`,
+the runtime registry shim is in `a940b91`, and the end-to-end phone probe is in
+`b62c070`; all are pushed to `origin/main`. The phone produced a finite,
+normalized 384-dimensional vector and five ranked vault hits.
 
 ## Postmortem correction
 
@@ -58,12 +60,11 @@ apples-to-apples GPU-versus-CPU benchmark. The later device evidence shows the
 actual phone path is q4 WASM with plain ORT glue and a proxy worker, and the
 browser WebGPU adapter is unavailable.
 
-The sidecar experiment was a valid compatibility probe because Node could not
-authoritatively run the browser runtime's `blob:` module URL, but it was not a
-actionable production path for this phone. The mistake was elevating it into a
-strict WebGPU solution before validating the equivalent browser-WASM path. The
-repo should preserve the working core and keep any browser sidecar as a
-separate prototype, not as the default backend or a supported branch state.
+The sidecar experiment was a valid compatibility boundary because Node could not
+run the browser runtime's `blob:` module URL. The mistake was elevating it into
+a strict WebGPU solution before validating the equivalent browser-WASM path.
+The browser-WASM path is now validated and is the Android default; strict
+WebGPU remains an explicit unsupported experiment on this phone.
 
 ## Recovery map
 
@@ -78,20 +79,20 @@ The branch history should be treated as warning markers, not working guidance:
 - `3e093b3` (`feat: add Chromium WebGPU sidecar probe`) is the branch split
   that introduced the wrong detour.
 - `24eee41` and the later debug commits are not a usable product baseline.
-- `695d3d5` is the only isolated transport fix worth keeping if a sidecar is
-  ever recreated, but it is not part of the active default path.
+- `695d3d5` fixed transport in the historical WebGPU branch; its browser/CDP
+  lesson is retained by the current WASM sidecar.
 
-The old sidecar branch and the debug-heavy mutation sequence are effectively
-burned. They stay in history only as a cautionary trail, not as active design.
+The old strict-WebGPU branch and debug-heavy mutation sequence remain historical
+cautionary material. The current browser-WASM sidecar is active design.
 
 ## Active engineering rules
 
-- Default runtime: direct Seek-compatible WASM, not Chromium WebGPU.
-- Browser sidecar: historical prototype only; it is not present in the active
-  runtime and must never be made the default without a deliberate review.
+- Default Android runtime: Seek-compatible WASM hosted in Chromium, not WebGPU.
+- Browser sidecar: supported Android query runtime; preserve its browser
+  boundary, plain WASM glue, and model contract.
 - Node owns MCP transport, vault access, index loading, and ranking.
-- Chromium/browser runtime owns optional browser execution only when explicitly
-  prototyped and separately validated.
+- Chromium/browser runtime owns query embedding; keep it resident when serving
+  multiple MCP requests so cold model startup is amortized.
 - The server is read-only; it does not edit notes, run Git, reindex Seek, or
   create a competing vector pipeline.
 - The separate plugin checkout owns exporter behavior; do not silently repair it
@@ -106,12 +107,12 @@ Seek compatibility files, especially `src/query-embedder.ts`,
 
 The active hypothesis is:
 
-> The working Wasm path is already correct and should be restored and validated
-> before any browser sidecar work is considered again.
+> The working browser-WASM path is correct; optimize residency and startup
+> without moving execution back into Node or switching to strict WebGPU.
 
-If browser-side experimentation resumes, do it in a separate prototype branch or
-local scratch state. Do not merge a new sidecar into the active default repo
-without re-validating the plain WASM baseline first.
+Revalidate the phone path after runtime or model changes. Do not replace the
+browser-WASM sidecar with direct Node execution: Node cannot load the browser
+runtime's `blob:` module.
 
 ## Compatibility maintenance
 

@@ -18,7 +18,9 @@ Short version: the AI may prepare a Chromium/browser-runtime probe, but the phon
 the actual execution and permission boundary. A remote VM or data-center process
 is not a phone and cannot claim device validation. The user runs the probe on
 the target device, records the result, and sends that evidence back through the
-repository so identity, security, and trust remain coherent.
+repository so identity, security, and trust remain coherent. The validated phone
+query path is a Node controller with a Chromium browser-WASM sidecar; Node still
+owns the read-only vault and ranking boundary.
 
 ## Goal
 
@@ -48,21 +50,22 @@ was working through q4 WASM, plain ORT glue, and a proxy worker.
 The old comparison therefore mixed hosts, worker placement, runtime loading,
 cold versus warm state, and likely batching. It was not an apples-to-apples GPU
 versus CPU benchmark. The MCP core was not invalidated by being slower. The
-Chromium sidecar branch was a later detour, not the baseline path, and it should
-not be treated as a replacement for the working WASM implementation.
+plugin had a resident, preloaded model, while a one-shot MCP command paid
+Chromium startup, model loading, tokenizer initialization, and WASM setup on its
+first query. The Chromium sidecar is now the supported Android execution path.
 
-The current repository state is a deliberate hybrid recovery: pushed commit
-`48e12cf` is based on current `main`, while `package.json`, `package-lock.json`,
-`src/query-embedder.ts`, and `src/seek-compatibility.ts` match `e1e8732`.
-Newer Markdown and shell-test history remains for investigation and evidence;
-it does not change the active executable core.
+The current repository state uses the validated browser-WASM bridge. Dependency
+integration is in `9d71002`, the Chromium query path is in `bc0bcd3`, the
+NodeNext vendor fixes are in `d775c30`, the runtime registry shim is in
+`a940b91`, and the end-to-end phone probe is in `b62c070`. The phone's
+`test-5.5.sh` run generated a finite, normalized 384-dimensional vector and
+ranked real vault notes.
 
 The recovery anchors are recorded in `HANDOFF.md` and `INVESTIGATION.md`:
-`e1e8732` is the last pre-sidecar mainline state, `3e093b3` introduces the
-strict-WebGPU sidecar detour, `24eee41` begins the debug-heavy expansion, and
-`695d3d5` is the isolated transport fix worth preserving only as historical
-context. The active baseline is the earlier WASM path; the sidecar detour is a
-burned branch and should not be revived as a supported runtime.
+`e1e8732` is the last pre-sidecar mainline state, `3e093b3` introduced the
+strict-WebGPU-only sidecar detour, and `695d3d5` fixed a transport issue in that
+historical branch. The current sidecar is a deliberate browser-WASM recovery,
+not the old WebGPU detour.
 
 ## Current architecture
 
@@ -144,9 +147,9 @@ loader and index APIs for status, search, chunk, and note checks. Note-level
 grouping, response bounds, automatic reload, and tombstone handling are not
 implemented yet. The query backend defaults to WASM; `SEEK_MCP_DEVICE=auto` may
 attempt WebGPU and fall back to WASM, while `SEEK_MCP_DEVICE=webgpu` is strict
-and fails when WebGPU cannot initialize. The restored core does this directly
-through the vendored web runtime; the historical sidecar is not wired into the
-active adapter. The phone's actual WebGPU capability
+and fails when WebGPU cannot initialize. On Android, the supported WASM path
+uses Chromium through `SEEK_CHROMIUM_PATH`, because Node cannot import the
+browser runtime's `blob:` module URL. The phone's actual WebGPU capability
 has now been tested from Termux. The phone is Android arm64 with Node 26,
 seven reported CPUs, SharedArrayBuffer, and Atomics, but Node exposes neither
 `navigator.gpu` nor a global `GPU`. The published `webgpu` package installs but
@@ -155,14 +158,12 @@ fails because it has no `android-arm64/dawn.node` binary. The official
 
 The phone-side tests also corrected the declared `onnxruntime-common` version
 and installed it successfully. The real Seek-compatible web/WASM embedder still
-failed because the browser-oriented runtime produced a `blob:` module URL that
-Node's ESM loader does not support. The experimental Chromium sidecar supplied
-the browser environment expected by the copied web stack, and its launch, child
-handshake, and CDP request/reply path were reached on the OnePlus 6T. That
-sidecar is historical evidence, not the active runtime. Its self-message bug
-was fixed, after which strict WebGPU reached ORT-Web but failed during q4
-`GatherBlockQuantized` execution with an invalid external WebGPU instance. The
-plugin's own report shows the phone has no usable WebGPU adapter and succeeds
-through q4 WASM with plain ORT glue and a proxy worker. A browser-hosted WASM
-sidecar remains a separate experiment, not the current runtime target. A custom
-Android native build is not yet justified by evidence.
+failed in Node because the browser-oriented runtime produced a `blob:` module
+URL that Node's ESM loader does not support. The restored Chromium sidecar
+supplies the browser environment expected by the copied web stack.
+`test-5.5.sh` proved the complete path: Chromium WASM generated a finite
+384-dimensional vector, repeated embedding was deterministic, and the vector
+ranked five notes from the 6,729-loaded-chunk vault. The first embedding took
+about 57 seconds because the model was cold; a resident server can amortize
+that cost. Strict WebGPU remains unsupported on this phone, and a custom
+Android native build is not justified.

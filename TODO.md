@@ -1,15 +1,15 @@
 # Obsidian Seek MCP TODO
 
-This list reflects the current working baseline, not the abandoned Chromium
-sidecar detour. The old sidecar branch is considered burned history and should
-not be treated as an active implementation target.
+This list reflects the current working baseline, including the validated
+Chromium browser-WASM query sidecar. The strict WebGPU detour remains historical
+and unsupported on the target phone.
 
 ## Current recovery state
 
-The current `main` commit is `48e12cf`, pushed to `origin/main`. It keeps the
-newer documentation and shell probes while restoring `package.json`,
-`package-lock.json`, `src/query-embedder.ts`, and `src/seek-compatibility.ts`
-to `e1e8732`. The build, two-test suite, and diff check passed before the push.
+The browser-WASM path is integrated in `bc0bcd3`; the vendored runtime shim is
+in `a940b91`, and `test-5.5.sh` proves the complete phone search path in
+`b62c070`. The build and two-test suite pass. The phone produced a finite,
+normalized 384-dimensional vector and ranked five vault notes.
 
 ## Active work
 
@@ -36,12 +36,14 @@ to `e1e8732`. The build, two-test suite, and diff check passed before the push.
   committed fixtures.
 - [ ] `[optional]` Add sign-bit candidate generation and reranking.
 - [ ] `[optional]` Reload a vault when its export generation changes.
+- [ ] `[important]` Keep Chromium resident across CLI/MCP requests so model
+  startup is paid once instead of once per one-shot command.
 - [x] Add a CLI that calls the same `SeekIndex` library as MCP.
 
-## Historical detour (burned)
+## Historical strict-WebGPU detour
 
-These items describe the Chromium sidecar branch and should be treated as
-warning markers only. They are not active requirements for the repo.
+These items describe the old strict-WebGPU branch and should remain warning
+markers only. They are not the phone's supported backend.
 
 - [x] Investigate Chromium launch and CDP handshake.
 - [x] Debug the self-message bug in the sidecar transport.
@@ -49,6 +51,12 @@ warning markers only. They are not active requirements for the repo.
 - [x] Observe the real plugin runtime: q4 WASM with plain ORT glue and a proxy
   worker.
 - [x] Record the split point and recovery map in the handoff docs.
+
+## Browser-WASM path
+
+- [x] Restore the Chromium/CDP bridge around Seek's browser child runtime.
+- [x] Route Android query embedding through Chromium WASM with plain glue.
+- [x] Prove a real 384-dimensional vector ranks the phone vault.
 
 ## Baseline implementation already complete
 
@@ -86,7 +94,8 @@ paired in the same directory:
 
 Update both in the same change. Preserve the largest recognizable Seek block
 first, adapt platform edges second, and trim only after numerical validation.
-The default backend remains direct Wasm, not a Chromium sidecar branch.
+The Android default is browser-hosted WASM through the Chromium sidecar; strict
+WebGPU remains an explicit unsupported experiment on the phone.
 
 ## Commands
 

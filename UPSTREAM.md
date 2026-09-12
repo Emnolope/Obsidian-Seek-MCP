@@ -81,19 +81,20 @@ reconstructing the design.
 `src/query-embedder.ts` follows Seek's query preprocessing, pooling,
 normalization, model, revision, token limit, output dimension, and default WASM
 glue selection. The compatibility module also exposes explicit `wasm`, `auto`,
-and strict `webgpu` requests. The copied web runtime remains the execution
-path; the MCP-specific adaptation replaces the plugin iframe/message boundary
-with a Node import boundary. Device evidence shows that the phone's working
-plugin path is browser-hosted WASM with plain glue and a proxy worker; the
-Chromium sidecar remains historical and is not wired into the active adapter.
-WebGPU remains optional because Node/Termux does not expose the browser APIs
-used by Seek and the phone's plugin host reports no usable adapter.
+and strict `webgpu` requests. The copied web runtime is hosted in the active
+Chromium sidecar, which preserves the plugin's iframe/browser boundary and CDP
+transport while Node owns the MCP/index adapter. Device evidence shows that the
+phone's working plugin path is browser-hosted WASM with plain glue and a proxy
+worker; the Chromium sidecar now reproduces that path. WebGPU remains optional
+because Node/Termux does not expose the browser APIs used by Seek and the
+phone's plugin host reports no usable adapter.
 
-## Current recovery note
+## Current runtime note
 
-The executable adapter and dependency files are restored to `e1e8732` in pushed
-commit `48e12cf`. Later sidecar/backend-detour code is historical and must not
-be inferred from newer documentation or shell probes.
+The browser-WASM adapter is in pushed commit `bc0bcd3`, with the runtime registry
+shim in `a940b91`. Phone probe `test-5.5.sh` generated a finite normalized
+384-dimensional vector and ranked vault results. The strict WebGPU detour remains
+historical; the supported Android sidecar uses WASM and plain glue.
 
 ## Maintenance procedure
 

@@ -64,8 +64,8 @@ inputs are accounted for.
 
 ## Backend policy
 
-The MCP implementation defaults to WASM because it runs in plain Node and does
-not require a browser. The backend policy is implemented in
+The MCP implementation defaults to WASM, hosted in Chromium on Android because
+the browser runtime requires browser `blob:` module loading. The backend policy is implemented in
 `src/seek-compatibility.ts` and consumed by `src/query-embedder.ts`:
 
 - `SEEK_MCP_DEVICE=wasm` selects the portable CPU/WASM path.
@@ -74,24 +74,27 @@ not require a browser. The backend policy is implemented in
 - `SEEK_MCP_DEVICE=webgpu` attempts WebGPU and fails if pipeline creation
    fails; it never silently changes the requested backend.
 
-The default for an unset or invalid value is `wasm`. Merely exposing
+The default for an unset or invalid value is `wasm`. On Android, set
+`SEEK_CHROMIUM_PATH` to the Termux Chromium binary; the sidecar keeps the model
+and browser runtime resident while the Node process owns ranking. Merely exposing
 `navigator.gpu` is not proof of a usable backend; pipeline creation is the
 discriminating capability check.
 
 The plugin's browser path adds iframe isolation, WebGPU adapter probing, shader
 warmup, device-loss recovery, and mobile memory policy. Those are runtime
-adaptations, not part of the vector contract. A future browser sidecar may
-reuse the copied Seek child runtime, but it must remain optional. Phone-side
+adaptations, not part of the vector contract. The MCP sidecar reuses the copied
+Seek child runtime in Chromium and requests q4 WASM with plain glue. Phone-side
 Termux tests found no Node `navigator.gpu`, no published Android Dawn binary,
 and a Node-incompatible `blob:` module URL in the browser-oriented WASM path.
-Those findings justify a sidecar boundary for execution, but do not alter the
-model, tokenizer, pooling, normalization, dtype, or output-dimension contract.
+The browser sidecar resolves those host limitations without altering the model,
+tokenizer, pooling, normalization, dtype, or output-dimension contract.
 
 ## Validation commands
 
 ```sh
 npm run build
 npm test
+SEEK_CHROMIUM_PATH=/data/data/com.termux/files/usr/bin/chromium-browser \
 SEEK_MCP_DEVICE=wasm npm run cli -- search "$VAULT" "test query" --top-k 5
 SEEK_MCP_DEVICE=auto npm run cli -- search "$VAULT" "test query" --top-k 5
 SEEK_MCP_DEVICE=webgpu npm run cli -- search "$VAULT" "test query" --top-k 5

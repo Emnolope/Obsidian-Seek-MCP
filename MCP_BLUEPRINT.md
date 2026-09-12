@@ -7,7 +7,7 @@ PicoClaw -> MCP stdio -> tool(vaultDir, arguments)
                          -> check hidden Seek index
                          -> check visible Seek Index fallback
                          -> load native sidecar + MCP manifest
-                         -> embed queryText or use queryVector
+                         -> Chromium browser-WASM embeds queryText or use queryVector
                          -> cosine-score vectors
                          -> return ranked chunks
 ```
@@ -15,10 +15,11 @@ PicoClaw -> MCP stdio -> tool(vaultDir, arguments)
 The vault directory is the only storage path exposed to the agent. The server
 owns the knowledge of Seek's two supported locations.
 
-The active executable core is the direct Seek-compatible WASM path restored from
-`e1e8732` in pushed commit `48e12cf`. Later Chromium sidecar and automatic
-backend-detour work remains historical documentation and is not part of this
-runtime contract.
+The active Android executable path is the Seek-compatible browser-WASM sidecar,
+integrated in `bc0bcd3` and validated by phone probe `test-5.5.sh`. Node remains
+the MCP, vault, and ranking process; Chromium hosts the browser runtime because
+Node cannot import its `blob:` WASM module URL. The strict WebGPU detour remains
+historical and is not the phone's runtime contract.
 
 ## Tool contract
 
@@ -31,10 +32,8 @@ fetch_note({ vaultDir, notePath })
 
 `semantic_search` accepts either ordinary text or exactly 384 numeric values.
 Text uses the pinned Seek-compatible Granite model through the copied
-Transformers.js web bundle. The active baseline is direct WASM execution; the
-older Chromium sidecar path is a burned historical detour and is not the
-supported normal runtime. Any future browser-side experiment must be treated as
-an isolated prototype and validated before it is considered for reuse.
+Transformers.js web bundle in Chromium. The direct Node import is retained only
+as a diagnostic comparison; the Android production path is browser-hosted WASM.
 
 The supported contract preserves the same model, tokenizer, dtype, pooling,
 normalization, and output dimension across runtime choices. Browser WebGPU
@@ -101,3 +100,5 @@ second vector representation or maintain a competing index state machine.
   `src/seek-compatibility.ts` implements its model, backend, and output rules;
   update them together.
 - Automatic reload, tombstones, and response-size limits are future work.
+- Cold-start amortization for one-shot CLI processes is future work; the MCP
+  server can keep Chromium and its loaded model resident.

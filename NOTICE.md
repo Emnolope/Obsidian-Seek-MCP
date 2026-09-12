@@ -33,10 +33,12 @@ plugin-side exporter lives in the separate
 Seek checkout and currently follows plugin commit
 `06b837126f66d54db97ef8785a7c95750e48c311`.
 
-The current pushed recovery commit is `48e12cf`, which restores the executable
-and dependency core files to `e1e8732`. The later Chromium sidecar and backend
-detour remain historical; their documentation and shell probes do not make
-those runtime paths active.
+The current browser-WASM query path is pushed in `bc0bcd3`; the runtime registry
+shim required by Node's strip-types loader is in `a940b91`. The phone-side
+`test-5.5.sh` probe produced a valid 384-dimensional vector and ranked vault
+results. The strict WebGPU detour remains historical, but the Chromium sidecar
+is now an active MCP runtime boundary and does not alter the copied Seek
+compatibility algorithms.
 
 When compatibility code changes, keep upstream-derived code and MCP adapter
 code visibly distinct. Preserve upstream naming, layout, ordering, and control
