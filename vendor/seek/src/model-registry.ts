@@ -22,7 +22,7 @@
 // and refuses cross-revision sidecar hydration (F10). Eviction still matches on
 // repo alone (a revision bump's stale bytes are reclaimed by the OS / next switch).
 
-import type { Dtype, SeekSettings } from './types';
+import type { Dtype, SeekSettings } from './types.js';
 
 export interface ModelSpec {
     // Stable identity for the index drift-stamp + storage namespacing. For shipped
